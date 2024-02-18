@@ -1,0 +1,144 @@
+{% extends "targets/base.html" %}
+{% load static %}
+{% block head %}
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.11.3/af-2.3.7/b-2.0.1/b-colvis-2.0.1/b-html5-2.0.1/b-print-2.0.1/cr-1.5.4/date-1.1.1/fc-4.0.0/fh-3.2.0/kt-2.6.4/r-2.2.9/rr-1.2.8/sb-1.2.2/sl-1.3.3/datatables.min.css"/>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/rowreorder/1.2.8/css/rowReorder.dataTables.min.css"/>
+<link rel="stylesheet" type="text/css" source="{% static 'targets/data-tables/css/editor.dataTables.min.css' %}"/>
+<link rel="stylesheet" type="text/css" source="{% static 'targets/data-tables/css/editor.bootstrap5.min.css' %}"/>
+
+{% endblock head %}
+
+{% block content %}
+<form id="organism-form" method="POST">
+{% csrf_token %}
+<h1 class="border-bottom mt-2 mb-3">Select organism</h1>
+<div class="d-grid gap-2 d-md-block mt-2 mb-2">
+
+    </div>
+    <table id="organism_table" class="display table table-hover"> 
+        <thead>
+            <tr>
+                <th>Organism</th>
+
+            </tr>
+        </thead>
+        
+    </table>
+
+    <div class="d-grid gap-2 d-md-block mt-2">
+        <button class="btn btn-success" type="submit">Continue</button>
+       <a class="btn btn-outline-danger mr-5" href="{% url 'targets:index' %}" role="button">Cancel</a>
+   </div>
+
+{% endblock content %}
+
+{% block js %}
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.11.3/af-2.3.7/b-2.0.1/b-colvis-2.0.1/b-html5-2.0.1/b-print-2.0.1/cr-1.5.4/date-1.1.1/fc-4.0.0/fh-3.2.0/kt-2.6.4/r-2.2.9/rr-1.2.8/sb-1.2.2/sl-1.3.3/datatables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/rowgroup/1.1.3/js/dataTables.rowGroup.min.js"></script>
+<script type="text/javascript" src="{% static 'targets/data-tables/js/dataTables.editor.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'targets/data-tables/js/editor.bootstrap5.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'targets/data-tables/js/editor.dataTables.min.js' %}"></script>
+
+<script>
+
+ $.ajaxSetup({
+    data: {csrfmiddlewaretoken: '{{ csrf_token }}' },
+ });
+ $(document).ready(function() {
+    let table = $('#organism_table').DataTable({
+        rowReorder: false,
+        fixedHeader: true,
+        stateSave: true,
+        rowId: function(a) {
+            return a.id;
+        },
+        ajax: {
+            url:"{% url 'targets:get_organism_json' %}",
+            csrfmiddlewaretoken: '{{ csrf_token }}',
+            dataSrc:""
+            },
+        order: [],
+        aLengthMenu: [
+                [25, 50, 100, 200, -1],
+                [25, 50, 100, 200, "All"]
+                ],
+        iDisplayLength: 25,
+        dom: 'B<"clear">lfrtip',
+        columnDefs: [
+        { targets: [0], visible: true},
+        { targets: '_all', visible: false }
+        ],
+        columns: [
+                { 
+                    data: "species",
+                },
+                {
+                    data: 'isolates'
+                },
+                {
+                    data: 'seqdef'
+                }
+            ],
+        select: {
+            style: 'single',
+        },
+        buttons: {
+            name: 'primary',
+            buttons: [ 
+            {
+            extend: 'copy',
+            title: 'Organism List'
+            },
+            {
+            extend: 'pdf',
+            title: 'Organism List'
+            },
+            {
+            extend: 'csv',
+            title: 'Organism List'
+            },
+            {
+            extend: 'excel',
+            title: 'Organism List'
+            },
+        ]
+            }}
+        );
+        // Handle form submission event
+   $('#organism-form').on('submit', function(e){
+      let form = this;
+      let rows = table.rows( { selected: true } ).data();
+
+      $(form).append(
+        $('<input>')
+            .attr('type', 'hidden')
+            .attr('name', 'species')
+            .val(rows[0].species)
+
+      );
+      $(form).append(
+        $('<input>')
+            .attr('type', 'hidden')
+            .attr('name', 'isolates')
+            .val(rows[0].isolates)
+      );
+      $(form).append(
+        $('<input>')
+            .attr('type', 'hidden')
+            .attr('name', 'seqdef')
+            .val(rows[0].seqdef)
+      );
+
+   
+
+
+
+    
+} );
+ })
+</script>
+{% endblock js %}

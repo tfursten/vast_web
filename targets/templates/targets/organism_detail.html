@@ -1,0 +1,20 @@
+{% extends "targets/base.html" %}
+{% block content %}
+<div class="card">
+    <h1 class="card-header"><i>{{ organism.name }}</i></h1>
+
+    <div class="card-body">
+        <ul class="list-group" list-group-flush">
+          <li class="list-group-item"><Strong>Isolates database: </Strong><a href="https://pubmlst.org/organisms/{{ organism.name_no_spaces }}/">{{ organism.db_isolates }}</a></li>
+          <li class="list-group-item"><Strong>Sequence definition database: </Strong><a href="https://pubmlst.org/organisms/{{ organism.name_no_spaces }}/">{{ organism.db_seqdef }}</a></li>
+        </ul>
+    </div>
+
+</div>
+<div class="d-grid gap-0 d-md-block mt-2">
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:organism_list' %}" role="button">Organisms <span data-feather="corner-up-left"></span></a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:index' %}" role="button">Home <span data-feather="corner-up-left"></span></a>
+
+</div>
+
+{% endblock content %}
