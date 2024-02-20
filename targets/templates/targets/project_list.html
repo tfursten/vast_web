@@ -7,7 +7,7 @@
 {% block content %}
 <h1 class="border-bottom">Projects</h1>
     <div class="d-grid gap-2 d-md-block mt-2 mb-2">
-        <a class="btn btn-primary btn" href="{% url 'targets:project_create' %}" role="button">New Project <span data-feather="plus"></span></a>
+        <a class="btn btn-primary btn" href="{% url 'targets:project_create' %}" role="button"><span data-feather="plus" style="display: inline-block; margin-right: 8px; align-items: center;"></span>New Project</a>
     </div>
     
 
@@ -17,6 +17,7 @@
             <tr>
                 <th>Project Name</th>
                 <th>Organism</th>
+                <th>Data</th>
                 <th>Genomes</th>
                 <th>Loci</th>
                 <th>Metadata</th>
@@ -25,48 +26,59 @@
         <tbody>
             {% for project in project_list %}
             <tr>
-                <td><a class="table-link" href="{% url 'targets:project_detail' project.id %}">
-                    {{ project.name }}
-                </a></td>
+                <td>
+                <a class="table-link" href="{% url 'targets:project_delete' project.id %}">
+                    <span data-feather="trash" style="display: inline-block; margin-right: 10px; align-items: center; color:red;">
+                    </span>
+                </a>
+                <a class="table-link" href="{% url 'targets:project_detail' project.id %}">
+                    {{ project.name }} 
+                </a>
+
+                </td>
                 {% if project.organism %}
                     <td>
                         <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:organism_detail' project.organism.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px; align-items: center;"></span>{{ project.organism.name }}</a>
                     </td>
+
                     {% if project.count_genomes %}
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="#"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_genomes}}</span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="#"><span data-feather="eye" style="display: inline-block;;"></span></a>
+                            <a role="button" class="btn btn-outline-primary btn-sm" href="#"><span data-feather="edit" style="display: inline-block;;"></span></a>
+                            <a role="button" class="btn btn-outline-danger btn-sm" href="#"><span data-feather="trash" style="display: inline-block;;"></span></a>
+
                         </td>
-                    {% else %}
                         <td>
-                            <a class="btn btn-outline-primary btn-sm" role="button">+ Add Genomes</a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:genome_list' project.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_genomes}}</span></a>
                         </td>
-                    {% endif %}
-                    {% if project.count_loci %}
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="#"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_loci}}</span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:locus_list' project.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_loci}}</span></a>
                         </td>
-                    {% else %}
-                        <td>
-                            <a class="btn btn-outline-primary btn-sm" role="button" href="{% url 'targets:select_loci' project.id %}">+ Add Loci</a>
-                        </td>
-                    {% endif %}
-                    {% if project.count_metadata %}
                         <td>
                             <a role="button" class="btn btn-outline-success btn-sm" href="#"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_metadata}}</span></a>
                         </td>
-                    {% elif project.count_genomes %}
-                        <td>
-                            <a class="btn btn-outline-primary btn-sm" role="button">+ Add Metadata</a>
-                        </td>
                     {% else %}
+                        <td>
+                            <a class="btn btn-outline-primary btn-sm" role="button" href="{% url 'targets:add_data' project.id %}">+ Add Data</a>
+                        </td>
+                        <td>
+                            <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Genomes</a>
+                        </td>
+                        <td>
+                            <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Loci</a>
+                        </td>
                         <td>
                             <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Metadata</a>
                         </td>
                     {% endif %}
+                   
 
                 {% else %}
                     <td>
                         <a role="button" class="btn btn-primary btn-sm" href="{% url 'targets:select_organism' project.id %}">+ Select organism</a>
+                    </td>
+                    <td>
+                        <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Data</a>
                     </td>
                     <td>
                         <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Genomes</a>

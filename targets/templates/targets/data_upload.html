@@ -1,0 +1,47 @@
+{% extends "targets/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class='content-section'>
+    <form method="POST" enctype="multipart/form-data" id="fileform">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-6">Select data file</legend>
+
+            {{ form|crispy }}
+            <p class="text-muted mt-3"><small>The data table should be sourced from <a href="https://pubmlst.org/">PubMLST</a> without any changes to the genome IDs or the column headers.
+                On the PubMLST organism page, click on Genome Collections. Select and filter genomes to use in this project and then click the export dataset button under Analysis Tools.
+                On the next page, select which loci to include and metadata categories and then click download. The resulting Excel file can be uploaded here. Metadata can be changed and additional
+                metadata columns can be added but do not modify the genome IDs or the names of loci in the column headers.</small>
+            </p>
+        </fieldset>
+        <div class="d-grid gap-2 d-md-block mt-2">
+            <button class="btn btn-success" type="submit" id="submitBtn">Submit</button>
+           <a class="btn btn-outline-danger mr-5" href="{% url 'targets:project_list' %}" role="button">Cancel</a>
+       </div>
+    </form>
+</div>
+{% endblock content %}
+
+{% block js %}
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#fileform').submit(function (e) {
+            // Prevent the default form submission
+            // e.preventDefault();
+
+            // Disable the submit button to prevent multiple submissions
+            $('#submitBtn').prop('disabled', true);
+
+            // Change the button text to a loading indicator
+            $('#submitBtn').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading');
+
+            // Perform your form submission or AJAX request here
+            // ...
+
+        });
+    });
+</script>
+
+{% endblock js %}

@@ -9,16 +9,16 @@
 {% endblock head %}
 
 {% block content %}
-<form id="loci-form" method="POST">
+<form id="genome-form" method="POST">
 {% csrf_token %}
-<h1 class="border-bottom mt-2 mb-2">Select Loci</h1>
+<h1 class="border-bottom mt-2 mb-2">Select Genomes</h1>
 <div class="d-grid gap-2 d-md-block mt-2 mb-2">
 
     </div>
-    <table id="loci_table" class="display table table-hover"> 
+    <table id="genome_table" class="display table table-hover"> 
         <thead>
             <tr>
-                <th>Loci</th>
+                <th>Genomes</th>
 
             </tr>
         </thead>
@@ -49,7 +49,7 @@
     data: {csrfmiddlewaretoken: '{{ csrf_token }}' },
  });
  $(document).ready(function() {
-    let table = $('#loci_table').DataTable({
+    let table = $('#genome_table').DataTable({
         rowReorder: false,
         fixedHeader: true,
         stateSave: true,
@@ -57,7 +57,7 @@
             return a.id;
         },
         ajax: {
-            url:"{% url 'targets:get_loci_json' pk %}",
+            url:"{% url 'targets:get_genome_json' pk %}",
             csrfmiddlewaretoken: '{{ csrf_token }}',
             dataSrc:""
             },
@@ -89,19 +89,19 @@
             'selectNone',
             {
             extend: 'copy',
-            title: 'Loci List'
+            title: 'Genome List'
             },
             {
             extend: 'pdf',
-            title: 'Loci List'
+            title: 'Genome List'
             },
             {
             extend: 'csv',
-            title: 'Loci List'
+            title: 'Genome List'
             },
             {
             extend: 'excel',
-            title: 'Loci List'
+            title: 'Genome List'
             },
         ]
             }
@@ -109,7 +109,7 @@
     table.rows({ page: 'all'}).select();
         // Handle form submission event
 
-    $('#loci-form').on('submit', function(e){
+    $('#genome-form').on('submit', function(e){
       let form = this;
 
       let rows = table.rows( {selected: true} ).data().toArray();
@@ -120,7 +120,7 @@
          $(form).append(
         $('<input>')
             .attr('type', 'hidden')
-            .attr('name', 'loci')
+            .attr('name', 'genome')
             .val(val.description)
 
       );
