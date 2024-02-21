@@ -16,12 +16,6 @@
 
     </div>
     <table id="loci_table" class="display table table-hover"> 
-        <thead>
-            <tr>
-                <th>Loci</th>
-
-            </tr>
-        </thead>
         
     </table>
 
@@ -45,9 +39,7 @@
 
 <script>
 
- $.ajaxSetup({
-    data: {csrfmiddlewaretoken: '{{ csrf_token }}' },
- });
+ 
  $(document).ready(function() {
     let table = $('#loci_table').DataTable({
         rowReorder: false,
@@ -59,7 +51,7 @@
         ajax: {
             url:"{% url 'targets:get_loci_json' pk %}",
             csrfmiddlewaretoken: '{{ csrf_token }}',
-            dataSrc:""
+            dataSrc:"data"
             },
         order: [],
         aLengthMenu: [
@@ -68,19 +60,30 @@
                 ],
         iDisplayLength: 25,
         dom: 'B<"clear">lfrtip',
-        columnDefs: [
-        { targets: [0], visible: true},
-        { targets: '_all', visible: false }
-        ],
         columns: [
-
-                { 
-                    data: "description",
-                },
+            { 
+                data: "name",
+                title: "Locus"
+            },
+            { 
+                data: "alleles",
+                title: "Alleles"
+            },
             ],
+
         select: {
             style: 'multi+shift'  
         },
+        initComplete: function(settings, json) {
+            // Iterate over rows and select based on row data
+            table.rows().every(function() {
+                var data = this.data(); // Get data of the current row
+                console.log(data)
+                // Check your condition for selecting rows based on row data
+                if (data['active']) { // Replace 'YourCondition' with your actual condition
+                    this.select(); // Select the row
+                }
+            });},
 
         buttons: {
             name: 'primary',
@@ -120,8 +123,8 @@
          $(form).append(
         $('<input>')
             .attr('type', 'hidden')
-            .attr('name', 'loci')
-            .val(val.description)
+            .attr('name', 'id')
+            .val(val.id)
 
       );
 

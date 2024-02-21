@@ -8,6 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse, reverse_lazy
 from django.db.utils import IntegrityError
+from django.core.serializers import serialize
 
 from django.contrib import messages
 from django.db.models import ProtectedError, Count, Q, Max, Min
@@ -16,6 +17,8 @@ from .forms import *
 from django.views.generic import (
     ListView, CreateView, DeleteView, UpdateView, DetailView)
 from Bio import SeqIO, Align
+from django.db import transaction
+
 
 
 def index(request):
@@ -52,6 +55,16 @@ class ProjectUpdateView(SuccessMessageMixin, UpdateView):
     
     def get_success_url(self):
         return reverse('targets:project_detail', args=(self.object.id,))
+    
+    def get_initial(self):
+        initial = super().get_initial()
+        # Retrieve the object being updated
+        obj = self.get_object()
+        # Populate the initial data with values from the object
+        initial['name'] = obj.name
+        initial['description'] = obj.description
+        initial['notes'] = obj.notes
+        return initial
 
 
 class ProjectDeleteView(DeleteView):
@@ -148,24 +161,7 @@ def get_organism_json(request):
 #         return reverse('targets:project_detail', args=(self.object.id,))
 
 
-
-
-
 # ============== Data ==================================
-def get_genomes_list(request, isolates_db):
-    r = requests.get(
-        f'https://rest.pubmlst.org/db/{isolates_db}/genomes?return_all=1', params=request.GET)
-    split = str.split
-    res = json.loads(r.text)
-    return list(map(lambda x: int(split(x, "/")[-1]), res['isolates']))
-
-
-def get_loci_list(request, isolates_db):
-    r = requests.get(
-        f'https://rest.pubmlst.org/db/{isolates_db}/loci?return_all=1', params=request.GET)
-    split = str.split
-    res = json.loads(r.text)
-    return list(map(lambda x: split(x, "/")[-1], res['loci']))
 
 
 def load_project_data(request, pk):
@@ -174,86 +170,112 @@ def load_project_data(request, pk):
         if form.is_valid():
             file_name = request.FILES['file']
             project = Project.objects.get(pk=pk)
-            project.loci.clear()
-            project.genomes.clear()
-            org = project.organism
+            # Set all columns and row to inactive
+            project.deactivate_all_genomes()
+            project.deactivate_all_loci()
+            project.deactivate_all_metadata_categories()
+
+            organism = project.organism
+            
             df = pd.read_excel(file_name, index_col='id')
-            db_genomes = get_genomes_list(request, org.db_isolates)
-            db_loci = get_loci_list(request, org.db_isolates)
+            print(df.head())
+            # pull existing genome and loci data from database
+            # to filter out any values from the table that may
+            # not belong.
+            db_genomes = organism.get_genomes_list(request)
+            db_loci = organism.get_loci_list(request)
+    
             loci_cols = df.columns.intersection(db_loci)
-            metadata_cols = df.columns.difference(db_loci)
             genome_idx = df.index.intersection(db_genomes)
+
+            threshold_percentage = 75
+
+            # Calculate the minimum number of non-NaN values required based on the threshold percentage
+            threshold_count = int((100 - threshold_percentage) / 100 * len(loci_cols))
+
+            # Drop rows with more than the specified threshold count of NaN values
+            df = df.dropna(thresh=threshold_count)
+
+            # Consider all other columns to be metadata
+            metadata_cols = df.columns.difference(db_loci)
             # keep only rows (genomes) that are found in the database
-            df = df.loc[genome_idx]
+            meta_df = df.loc[genome_idx, metadata_cols].to_dict()
+            alleles_df = df.loc[genome_idx, loci_cols].to_dict()
+            # TODO: add warning if alleles/genomes are removed
             # add loci to database
-            loci_allele_dict = {}
-            add_loci = []
+            loci_dict = {}
+            print("creating LOCI")
             for locus in loci_cols:
-                locus_inst, _ = Locus.objects.get_or_create(
+                locus_inst, created = Locus.objects.get_or_create(
                     name=locus,
-                    organism=project.organism,
+                    project=project,
                 )
-                add_loci.append(locus_inst)
-                loci_allele_dict[locus] = {}
-                if df[locus].dtype == object: # replace multiple alleles with only first one
-                    df[locus] = df[locus].apply(lambda x: x.split(";")[0] if isinstance(x, str) else x)
-                for allele in df[locus].dropna().unique():
-                    if allele: # not none or nan
-                        allele_inst, _ = Allele.objects.get_or_create(
-                            name=allele,
-                            locus=locus_inst
-                        )
-                        loci_allele_dict[locus][allele] = allele_inst
+                if not created:
+                    # Created are active by default but if
+                    # locus already exists move to active
+                    locus_inst.active = True
+                    locus_inst.save()
+                loci_dict[locus] = locus_inst
+            print("creating GENOMES")
 
-            # add metadata to database
-            metadata_dict = {}
-            for meta in metadata_cols:
-                meta_cat_inst, _ = MetadataCategory.objects.get_or_create(
-                    name=meta
-                )
-
-                metadata_dict[meta] = {}
-             
-                for value in df[meta].dropna().unique():
-                    if value: # not none or nan
-                        meta_inst, _ = Metadata.objects.get_or_create(
-                            value=value,
-                            category=meta_cat_inst
-                        )
-                        metadata_dict[meta][value] = meta_inst
-            meta_df = df[metadata_cols]
-            alleles_df = df[loci_cols]
-            # create genomes
-            add_genomes = []
+            # add genomes to database
+            genome_dict = {}
             for genome in genome_idx:
-                if genome: # not none or nan
-                    genome_inst, _ = Genome.objects.get_or_create(
-                        name=genome,
-                        organism=project.organism,
-                        )
-
-                    # add metadata Many2Many relationships
-                    genome_inst.alleles.clear() # start from scratch on new data upload
-                    genome_inst.metadata.clear()
-                    add_metadata = []
-                    this_meta = meta_df.loc[genome].dropna()
-                    for k, v in this_meta.items():
-                        if v:
-                            add_metadata.append(metadata_dict[k][v])
-                    genome_inst.metadata.add(*add_metadata)
-                    # add alleles Many2Many relationships
-                    add_alleles = []
-                    this_alleles = alleles_df.loc[genome].dropna()
-                    for k, v in this_alleles.items():
-                        if v:
-                            add_alleles.append(loci_allele_dict[k][v])
-                    genome_inst.alleles.add(*add_alleles)
+                genome_inst, created = Genome.objects.get_or_create(
+                    name=genome,
+                    project=project,
+                )
+                if not created:
+                    # Created are active by default but if
+                    # genome already exists move to active
+                    genome_inst.active = True
                     genome_inst.save()
-                    add_genomes.append(genome_inst)
-            project.genomes.add(*add_genomes)
-            project.loci.add(*add_loci)
-            project.save()
-            return redirect('targets:project_list')
+                genome_dict[genome] = genome_inst
+            print("creating metacat")
+
+            # add metadata cateories to database
+            meta_dict = {}
+            for meta in metadata_cols:
+                meta_inst, created = MetadataCategory.objects.get_or_create(
+                    name=meta,
+                    project=project,
+                )
+                if not created:
+                    # Created are active by default but if
+                    # metadata cat already exists move to active
+                    meta_inst.active = True
+                    meta_inst.save()
+                meta_dict[meta] = meta_inst
+
+            # add alleles
+            print("creating alleles")
+
+            for locus, values in alleles_df.items():
+                locus_inst = loci_dict[locus]
+                for genome, allele in values.items():
+                    if str(allele) != 'nan': # don't add alleles with missing data
+                        Allele.objects.update_or_create(
+                            genome=genome_dict[genome],
+                            locus=locus_inst,
+                            project=project,
+                            defaults={'value': allele}
+                            )
+            print("creating METADATA")
+
+            # add metadata
+            for metacat, values in meta_df.items():
+                metacat_inst = meta_dict[metacat]
+                for genome, value in values.items():
+                    if str(value) != 'nan': # don't add metadata with missing values
+                        Metadata.objects.update_or_create(
+                            genome=genome_dict[genome],
+                            category=metacat_inst,
+                            project=project,
+                            defaults={'value': value}
+                            )
+                       
+
+            return redirect('targets:project_detail', pk=pk)
     else:
         form = DataUploadForm()
 
@@ -266,7 +288,7 @@ class GenomeListView(ListView):
     template_name = "targets/genome_list.html"
     model = Genome
     def get_queryset(self, **kwargs):
-        new_context = Project.objects.get(pk=self.kwargs['pk']).genomes.all()
+        new_context = Project.objects.get(pk=self.kwargs['pk']).get_active_genomes()
         return new_context
     
     def get_context_data(self, **kwargs):
@@ -276,111 +298,54 @@ class GenomeListView(ListView):
         return context
     
 
-def get_genomes_json(request, pk):
+def get_genomes_json(request, pk, active=None):
     project = Project.objects.get(id=pk)
-    r = requests.get(
-        f'https://rest.pubmlst.org/db/{project.organism.db_isolates}/genomes?return_all=1', params=request.GET)
-    split = str.split
-    res = json.loads(r.text)
-    data = [
-        {'id': i, 'description': v} for i, v in enumerate(
-        map(lambda x: split(x, "/")[-1], res['isolates']))]
+    if active is None:
+        genomes = project.get_genomes()
+    else:
+        genomes = project.get_active_genomes()
 
+    all_rows = []
+
+    for genome in genomes:
+        all_rows.append({
+            'id': genome.id,
+            'name': genome.name,
+            'alleles': genome.count_alleles(),
+            'metadata': genome.count_metadata(),
+            'active': genome.active
+        })
+
+
+    data = {'data': all_rows}
+    # Return JSON response
     return JsonResponse(data, safe=False)
+
+
 
 
 def select_genomes_list(request, pk):
     if request.method == 'POST':
-        genome_resp = request.POST
-        created_count = 0
-        project = Project.objects.get(id=pk)
-        project.genomes.clear()
-        new_genomes = []
-        for g in genome_resp.getlist('genome'):
-            if not Genome.objects.filter(name = g, organism=project.organism).exists():
-                new_genomes.append(g)
-            else:
-                genome = Genome.objects.get(name=g, organism=project.organism)
-                project.genomes.add(genome)
-        old_genomes = len(genome_resp.getlist('genome')) - len(new_genomes)
-        allele_urls = {k: f'https://rest.pubmlst.org/db/{project.organism.db_isolates}/isolates/{k}/allele_ids?return_all=1' for k in new_genomes }
+        genome_resp = map(int, request.POST.getlist('id'))
+        project = Project.objects.get(pk=pk)
+        project.deactivate_all_genomes()
+        activate = Genome.objects.filter(project=project, pk__in=genome_resp)
+        for genome in activate:
+            genome.active = True
+            genome.save()
+        return redirect('targets:project_detail', pk=pk)
 
-        max_threads = 4  # PUBMLST REST API MAX
-        def api_call(url):
-            response = requests.get(url, params=request.GET)
-            result = json.loads(response.text)['allele_ids']
-            return result
-        # Use ThreadPoolExecutor to make concurrent API calls
-        with concurrent.futures.ThreadPoolExecutor(max_threads) as executor:
-            # Use the map function to apply the api_call function to each URL in parallel
-            results = dict(zip(allele_urls.keys(), list(executor.map(api_call, allele_urls.values()))))
-        
-        # Get dictionary of all unique loci and alleles to create/update
-        uni_loci_alleles = {}
-        for genome, result in results.items():
-            for d in result:
-                for locus, allele in d.items():
-                    if isinstance(allele, list):
-                        # sometimes the alleles are a list so pick first one
-                        allele = allele[0]
-                    if locus in uni_loci_alleles:
-                        uni_loci_alleles[locus].add(allele)
-                    else:
-                        uni_loci_alleles[locus] = {allele}
-        allele_objs = {}       
-        # update/create loci and alleles
-        for locus, alleles in uni_loci_alleles.items():
-            loc, _ = Locus.objects.get_or_create(
-                        name=locus,
-                        organism=project.organism
-                    )
-            for allele in alleles:
-                al, _ = Allele.objects.update_or_create(
-                        name=allele,
-                        locus=loc
-                    )
-                if locus in allele_objs:
-                    allele_objs[locus][allele] = al
-                else:
-                    allele_objs[locus] = {allele: al}
-        # Assign alleles to genomes
-        add_genomes = []
-        for genome, result in results.items():
-            print(f"ON GENOME {genome}")
-            gen, created = Genome.objects.get_or_create(
-                    name=genome,
-                    organism=project.organism,
-                )
-            add_alleles = []
-            for d in result:
-                for locus, allele in d.items():
-                    if isinstance(allele, list):
-                        # sometimes the alleles are a list so pick first one
-                        allele = allele[0]
-                    add_alleles.append(allele_objs[locus][allele])
-            gen.alleles.add(*add_alleles)
-            gen.save()
-            if created:
-                add_genomes.append(gen)
-                created_count += 1
-        # add updated genomes
-        project.genomes.add(*add_genomes)
-        project.save()
-
-        msg = f"Successfully created {created_count} genomes and added to project {project.name}."if created_count else ""
-        msg += f" Successfully updated {old_genomes} genomes for project {project.name}." if old_genomes else ""
-        messages.success(request, msg)
-        return redirect('targets:project_detail', pk=pk) # TODO: change redirect to genome list when created
-        
     return render(request, "targets/select_genomes.html", {'pk': pk})
 
-# ============== LOCI ==================================
 
+
+
+# ============== LOCI ==================================
 class LocusListView(ListView):
     template_name = "targets/locus_list.html"
     model = Locus
     def get_queryset(self, **kwargs):
-        new_context = Project.objects.get(pk=self.kwargs['pk']).loci.all()
+        new_context = Project.objects.get(pk=self.kwargs['pk']).get_active_loci()
         return new_context
     
     def get_context_data(self, **kwargs):
@@ -390,47 +355,207 @@ class LocusListView(ListView):
         return context
     
 
-
-def get_loci_json(request, pk):
+def get_loci_json(request, pk, active=None):
     project = Project.objects.get(id=pk)
-    r = requests.get(
-        f'https://rest.pubmlst.org/db/{project.organism.db_isolates}/loci?return_all=1', params=request.GET)
-    split = str.split
-    res = json.loads(r.text)
-    data = [
-        {'id': i, 'description': v} for i, v in enumerate(
-        map(lambda x: split(x, "/")[-1], res['loci']))]
+    if active is None:
+        loci = project.get_loci()
+    else:
+        loci = project.get_active_loci()
 
+    all_rows = []
+    for locus in loci:
+        all_rows.append({
+            'id': locus.id,
+            'name': locus.name,
+            'alleles': locus.count_alleles,
+            'active': locus.active
+        })
+
+    data = {'data': all_rows}
+    # Return JSON response
     return JsonResponse(data, safe=False)
 
 
 def select_loci_list(request, pk):
     if request.method == 'POST':
-        loci_resp = request.POST
-        created_count = 0
-        updated_count = 0
-        project = Project.objects.get(id=pk)
-        project.loci.clear()
-        add_loci = []
-        for locus in loci_resp.getlist('loci'):
-            locus, created = Locus.objects.get_or_create(
-                    name=locus,
-                    organism=project.organism,
-                )
-            add_loci.append(locus)
-            if created:
-                created_count += 1
-            else:
-                updated_count += 1
-        project.loci.add(*add_loci)
-        project.save()
-        msg = f"Successfully added {created_count} loci project {project.name}. " if created_count else ""
-        msg += f"Successfully updated {updated_count} loci for project {project.name}" if updated_count else ""
-        messages.success(request, msg)
-        return redirect('targets:project_detail', pk=pk) # TODO: change redirect to loci list when created
-        
+        loci_resp = map(int, request.POST.getlist('id'))
+        project = Project.objects.get(pk=pk)
+        project.deactivate_all_loci()
+        activate = Locus.objects.filter(project=project, pk__in=loci_resp)
+        for locus in activate:
+            locus.active = True
+            locus.save()
+        return redirect('targets:project_detail', pk=pk)
+
     return render(request, "targets/select_loci.html", {'pk': pk})
-    # r = requests.get('https://rest.pubmlst.org/db', params=request.GET)
+
+
+# ============== METADATA ==================================
+class MetadataCategoryListView(ListView):
+    template_name = "targets/metadatacategory_list.html"
+    model = MetadataCategory
+    def get_queryset(self, **kwargs):
+        new_context = Project.objects.get(pk=self.kwargs['pk']).get_active_metadata()
+        return new_context
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        context['project'] = project
+        return context
+    
+
+def get_metacat_json(request, pk, active=None):
+    project = Project.objects.get(id=pk)
+    if active is None:
+        meta = project.get_metadata()
+    else:
+        meta = project.get_active_metadata()
+
+    all_rows = []
+    for dat in meta:
+        all_rows.append({
+            'id': dat.id,
+            'name': dat.name,
+            'values': dat.count_values,
+            'active': dat.active
+        })
+
+    data = {'data': all_rows}
+    # Return JSON response
+    return JsonResponse(data, safe=False)
+
+
+def select_metacat_list(request, pk):
+    if request.method == 'POST':
+        meta_resp = map(int, request.POST.getlist('id'))
+        project = Project.objects.get(pk=pk)
+        project.deactivate_all_metadata_categories()
+        activate = MetadataCategory.objects.filter(project=project, pk__in=meta_resp)
+        for meta in activate:
+            meta.active = True
+            meta.save()
+        return redirect('targets:project_detail', pk=pk)
+
+    return render(request, "targets/select_metadatacategory.html", {'pk': pk})
+
+# ============== DATA ==================================
+
+
+def data_list_view(request, pk):
+    project = Project.objects.get(id=pk)
+    active_genomes = project.get_active_genomes()
+    active_loci = project.get_active_loci()
+    active_metadata = project.get_active_metadata()
+    alleles = Allele.objects.filter(
+        project=project,
+        genome__in=active_genomes.values_list('id', flat=True),
+        locus__in=active_loci.values_list('id', flat=True)
+        ).values('genome', 'locus', 'value')
+    meta = Metadata.objects.filter(
+        project=project,
+        genome__in=active_genomes.values_list('id', flat=True),
+        category__in=active_metadata.values_list('id', flat=True)
+        ).values('genome', 'category', 'value')
+    allele_df = pd.DataFrame.from_dict(alleles)
+    allele_df = allele_df.pivot(index="genome", columns='locus', values='value')
+    idx_dict = {gen.id: gen.name for gen in active_genomes}
+    allele_df.index = [idx_dict.get(i) for i in allele_df.index]
+    col_dict = {loc.id: loc.name for loc in active_loci}
+    allele_df.columns = [col_dict.get(i) for i in allele_df.columns]
+
+    meta_df = pd.DataFrame.from_dict(meta)
+    meta_df = meta_df.pivot(index="genome", columns='category', values='value')
+    idx_dict = {gen.id: gen.name for gen in active_genomes}
+    meta_df.index = [idx_dict.get(i) for i in meta_df.index]
+    col_dict = {loc.id: loc.name for loc in active_metadata}
+    meta_df.columns = [col_dict.get(i) for i in meta_df.columns]
+
+    df = meta_df.join(allele_df)
+    df = df.fillna('')
+    print(df.head())
+    html = df.to_html(
+        table_id="datatable",
+        classes=['display', 'table', 'table-hover'],
+        justify="left", index=True)
+    print(html[:100])
+
+    return render(
+                request, 'targets/data_table.html',
+                {'table': html, 'project': project}
+                )
+
+    
+
+def data_delete_view(request, pk):
+    project = Project.objects.get(pk=pk)
+    if request.method == 'POST':
+        project.get_genomes().delete()
+        project.get_loci().delete()
+        project.get_metadata().delete()
+        # Handle the confirmation of the delete action
+        return redirect('targets:project_list')  # Redirect to a success page after deletion
+
+    # Render the confirmation template for the delete action
+    return render(request, 'targets/data_confirm_delete.html', {'project': project})
+
+# ============== LOCI ==================================
+
+# class LocusListView(ListView):
+#     template_name = "targets/locus_list.html"
+#     model = Locus
+#     def get_queryset(self, **kwargs):
+#         new_context = Project.objects.get(pk=self.kwargs['pk']).loci.all()
+#         return new_context
+    
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         project = Project.objects.get(pk=self.kwargs['pk'])
+#         context['project'] = project
+#         return context
+    
+
+
+# def get_loci_json(request, pk):
+#     project = Project.objects.get(id=pk)
+#     r = requests.get(
+#         f'https://rest.pubmlst.org/db/{project.organism.db_isolates}/loci?return_all=1', params=request.GET)
+#     split = str.split
+#     res = json.loads(r.text)
+#     data = [
+#         {'id': i, 'description': v} for i, v in enumerate(
+#         map(lambda x: split(x, "/")[-1], res['loci']))]
+
+#     return JsonResponse(data, safe=False)
+
+
+# def select_loci_list(request, pk):
+#     if request.method == 'POST':
+#         loci_resp = request.POST
+#         created_count = 0
+#         updated_count = 0
+#         project = Project.objects.get(id=pk)
+#         project.loci.clear()
+#         add_loci = []
+#         for locus in loci_resp.getlist('loci'):
+#             locus, created = Locus.objects.get_or_create(
+#                     name=locus,
+#                     organism=project.organism,
+#                 )
+#             add_loci.append(locus)
+#             if created:
+#                 created_count += 1
+#             else:
+#                 updated_count += 1
+#         project.loci.add(*add_loci)
+#         project.save()
+#         msg = f"Successfully added {created_count} loci project {project.name}. " if created_count else ""
+#         msg += f"Successfully updated {updated_count} loci for project {project.name}" if updated_count else ""
+#         messages.success(request, msg)
+#         return redirect('targets:project_detail', pk=pk) # TODO: change redirect to loci list when created
+        
+#     return render(request, "targets/select_loci.html", {'pk': pk})
+#     # r = requests.get('https://rest.pubmlst.org/db', params=request.GET)
 
 
 # # ============== PANELS ================================

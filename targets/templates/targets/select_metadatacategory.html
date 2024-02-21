@@ -9,13 +9,13 @@
 {% endblock head %}
 
 {% block content %}
-<form id="genome-form" method="POST">
+<form id="meta-form" method="POST">
 {% csrf_token %}
-<h1 class="border-bottom mt-2 mb-2">Select Genomes</h1>
+<h1 class="border-bottom mt-2 mb-2">Select Metadata Categories</h1>
 <div class="d-grid gap-2 d-md-block mt-2 mb-2">
 
     </div>
-    <table id="genome_table" class="display table table-hover"> 
+    <table id="meta_table" class="display table table-hover"> 
 
         
     </table>
@@ -41,12 +41,12 @@
 <script>
 
  $(document).ready(function() {
-    let table = $('#genome_table').DataTable({
+    let table = $('#meta_table').DataTable({
         rowReorder: false,
         fixedHeader: true,
         stateSave: true,
         ajax: {
-            url:"{% url 'targets:get_genome_json' pk %}",
+            url:"{% url 'targets:get_metacat_json' pk %}",
             csrfmiddlewaretoken: '{{ csrf_token }}',
             dataSrc:"data"
             },
@@ -62,15 +62,11 @@
 
                 { 
                     data: "name",
-                    title: "Genome"
+                    title: "Category"
                 },
                 { 
-                    data: "alleles",
-                    title: "Alleles"
-                },
-                { 
-                    data: "metadata",
-                    title: "Metadata"
+                    data: "values",
+                    title: "Unique Values"
                 },
             ],
         select: {
@@ -94,19 +90,19 @@
             'selectNone',
             {
             extend: 'copy',
-            title: 'Genome List'
+            title: 'Metadata List'
             },
             {
             extend: 'pdf',
-            title: 'Genome List'
+            title: 'Metadata List'
             },
             {
             extend: 'csv',
-            title: 'Genome List'
+            title: 'Metadata List'
             },
             {
             extend: 'excel',
-            title: 'Genome List'
+            title: 'Metadata List'
             },
         ]
             }
@@ -114,7 +110,7 @@
 
         // Handle form submission event
 
-    $('#genome-form').on('submit', function(e){
+    $('#meta-form').on('submit', function(e){
       let form = this;
 
       let rows = table.rows( {selected: true} ).data().toArray();

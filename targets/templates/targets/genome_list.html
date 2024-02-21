@@ -5,33 +5,16 @@
 {% endblock head %}
 
 {% block content %}
-<h1 class="border-bottom">Genomes for project: {{ project.name }}</h1>
+<h1 class="border-bottom">Selected Genomes for Project: {{ project.name }}</h1>
     <div class="d-grid gap-2 d-md-block mt-2 mb-2">
+        <a class="btn btn-primary btn" href="{% url 'targets:select_genomes' project.id %}" role="button">Update Selection <span data-feather="edit"></span></a>
         <a class="btn btn-outline-primary btn" href="{% url 'targets:project_detail' project.id %}" role="button">Project <span data-feather="corner-up-left"></span></a>
         <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button">Home <span data-feather="corner-up-left"></span></a>
     </div>
     
-
     <table id="genome_table" class="display table table-hover"  align="center"  style="width:100%"> 
-        <thead>
-            
-            <tr>
-                <th>Genomes</th>
-                <th>Allele Records</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for genome in genome_list %}
-                <tr>
-                    <td>
-                        {{ genome.name }}                        
-                    </td>
-                    <td>
-                        {{ genome.count_alleles }}
-                    </td>
-                </tr>
-            {% endfor %}
-        </tbody>
+
+
     </table>
 
 {% endblock content %}
@@ -50,14 +33,35 @@
     fixedHeader: true,
     order: [],
     stateSave: true,
+    ajax: {
+            url:"{% url 'targets:get_genome_json' project.id 1 %}",
+            csrfmiddlewaretoken: '{{ csrf_token }}',
+            dataSrc:"data"
+            },
     aLengthMenu: [
             [25, 50, 100, 200, -1],
             [25, 50, 100, 200, "All"]
             ],
          iDisplayLength: 25,
     dom: 'B<"clear">lfrtip',
+    columns: [
+
+                { 
+                    data: "name",
+                    title: "Genome"
+                },
+                { 
+                    data: "alleles",
+                    title: "Alleles"
+                },
+                { 
+                    data: "metadata",
+                    title: "Metadata"
+                },
+            ],
     buttons: {
         name: 'primary',
+        
         buttons: [ 
         {
           extend: 'copy',

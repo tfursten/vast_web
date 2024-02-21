@@ -13,16 +13,22 @@
     {% endif %}
 
     {% if project.count_loci %}
-    <li class="list-group-item"><Strong>Loci:</Strong> <a href="{% url 'targets:locus_list' project.id %}"> {{ project.count_loci }}</a>
+    <li class="list-group-item"><Strong>Loci:</Strong> <a href="{% url 'targets:locus_list' project.id %}"> {{ project.count_active_loci }} active / {{ project.count_loci }} total</a>
       <a href="{% url 'targets:select_loci' project.id %}"><span data-feather="edit" style="display: inline-block; margin-left: 15px;"></span></a>
     {% else %}
     <li class="list-group-item"><Strong>Loci:</Strong> <a href="{% url 'targets:add_data' project.id %}"> Add Data </a></li>
     {% endif %}
     {% if project.count_genomes %}
-    <li class="list-group-item"><Strong>Genomes:</Strong> <a href="{% url 'targets:genome_list' project.id %}"> {{ project.count_genomes }}</a>
+    <li class="list-group-item"><Strong>Genomes:</Strong> <a href="{% url 'targets:genome_list' project.id %}"> {{ project.count_active_genomes }} active / {{ project.count_genomes }} total</a>
       <a href="{% url 'targets:select_genomes' project.id %}"><span data-feather="edit" style="display: inline-block; margin-left: 15px;"></span></a>
     {% else %}
     <li class="list-group-item"><Strong>Genomes:</Strong> <a href="{% url 'targets:add_data' project.id %}"> Add Data </a></li>
+    {% endif %}
+    {% if project.count_metadata %}
+    <li class="list-group-item"><Strong>Metadata Categories:</Strong> <a href="{% url 'targets:metacat_list' project.id %}"> {{ project.count_active_metadata }} active / {{ project.count_metadata }} total</a>
+      <a href="{% url 'targets:select_metacat' project.id %}"><span data-feather="edit" style="display: inline-block; margin-left: 15px;"></span></a>
+    {% else %}
+    <li class="list-group-item"><Strong>Metadata Categories:</Strong> <a href="{% url 'targets:add_data' project.id %}"> Add Data </a></li>
     {% endif %}
 
       <li class="list-group-item"><Strong>Notes:</Strong> {{ project.notes }}</li>
@@ -30,6 +36,9 @@
     </ul>
 </div>
 <div class="d-grid gap-0 d-md-block mt-2">
+    {% if project.count_genomes %}
+    <a class="btn btn-primary btn mb-2" href="{% url 'targets:data_list' project.id %}" role="button">View Data <span data-feather="list"></span></a>
+    {% endif %}
     <a class="btn btn-primary btn mb-2" href="{% url 'targets:project_update' project.id %}" role="button">Edit <span data-feather="edit"></span></a>
     <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:project_create' %}" role="button">Add New Project <span data-feather="plus"></span></a>
     <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:project_list' %}" role="button">Projects <span data-feather="corner-up-left"></span></a>

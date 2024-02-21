@@ -1,107 +1,322 @@
 from django.db import models
+import requests
+import json
 
 class Organism(models.Model):
+    """
+    Model representing an PubMLST organism and path to databases in API
+    """
     name = models.CharField(max_length=255)
     db_isolates = models.CharField(max_length=255)
     db_seqdef = models.CharField(max_length=255)
 
     @property
     def name_no_spaces(self):
+        """
+        Return organism name without spaces for adding to paths
+        """
         return self.name.replace("-like", "").replace(' ', '-').replace(".", "").replace("/", "")
     
     def __str__(self):
+        """
+        String representation of the organism.
+        """
         return f"{self.name}"
+    
+    def get_genomes_list(self, request):
+        """
+        Pull data on all genomes for organism from PubMLST API
+        """
+        r = requests.get(
+        f'https://rest.pubmlst.org/db/{self.db_isolates}/genomes?return_all=1', params=request.GET)
+        split = str.split
+        res = json.loads(r.text)
+        return list(map(lambda x: int(split(x, "/")[-1]), res['isolates']))
+
+    def get_loci_list(self, request):
+        """
+        Pull data on all loci for organism from PubMLST API.
+        """
+        r = requests.get(
+            f'https://rest.pubmlst.org/db/{self.db_isolates}/loci?return_all=1', params=request.GET)
+        split = str.split
+        res = json.loads(r.text)
+        return list(map(lambda x: split(x, "/")[-1], res['loci']))
+
+class Project(models.Model):
+    """
+    Model representing a project.
+    """
+    name = models.CharField(max_length=64)
+    description = models.CharField(max_length=255, null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
+    organism = models.ForeignKey(Organism, on_delete=models.CASCADE, null=True, blank=True)
+    created_on = models.DateTimeField(auto_now_add=True, db_index=True, null=True)
+    
+    class Meta:
+        """
+        Metadata for ordering projects by creation date.
+        """
+        ordering = ("-created_on",)
+
+    def __str__(self):
+        """
+        String representation of the project.
+        """
+        return f"{self.name}"
+
+    @property
+    def count_loci(self):
+        """
+        Property returning the count of loci associated with the project.
+        """
+        return self.locus_set.count()
+
+    @property
+    def count_genomes(self):
+        """
+        Property returning the count of genomes associated with the project.
+        """
+        return self.genome_set.count()
+    
+    @property
+    def count_metadata(self):
+        """
+        Property returning the count of unique metadata categories associated with the project.
+        """
+        return self.metadatacategory_set.count()
+
+    @property
+    def count_active_loci(self):
+        """
+        Property returning the count of loci associated with the project.
+        """
+        return self.locus_set.filter(active=True).count()
+
+    @property
+    def count_active_genomes(self):
+        """
+        Property returning the count of genomes associated with the project.
+        """
+        return self.genome_set.filter(active=True).count()
+    
+    @property
+    def count_active_metadata(self):
+        """
+        Property returning the count of unique metadata categories associated with the project.
+        """
+        return self.metadatacategory_set.filter(active=True).count()
+    
+    def get_genomes(self):
+        """
+        Return genomes associated with the project
+        """
+        return self.genome_set.all()
+
+    def get_loci(self):
+        """
+        Return loci associated with the project
+        """
+        return self.locus_set.all()
+
+    def get_metadata(self):
+        """
+        Return metadata categories associated with the project.
+        """
+        return self.metadatacategory_set.all()
+    
+    def get_active_genomes(self):
+        """
+        Return genomes associated with the project
+        """
+        return self.genome_set.filter(active=True)
+
+    def get_active_loci(self):
+        """
+        Return loci associated with the project
+        """
+        return self.locus_set.filter(active=True)
+
+    def get_active_metadata(self):
+        """
+        Return metadata categories associated with the project.
+        """
+        return self.metadatacategory_set.filter(active=True)
+    
+    def get_deactive_genomes(self):
+        """
+        Return genomes associated with the project
+        """
+        return self.genome_set.filter(active=False)
+
+    def get_deactive_loci(self):
+        """
+        Return loci associated with the project
+        """
+        return self.locus_set.filter(active=False)
+
+    def get_deactive_metadata(self):
+        """
+        Return metadata categories associated with the project.
+        """
+        return self.metadatacategory_set.filter(active=False)   
+     
+    def deactivate_all_genomes(self):
+        """
+        Deactivate all Genome instances associated with this Project.
+        """
+        genomes_to_deactivate = Genome.objects.filter(project=self, active=True)
+
+        # Deactivate each genome
+        for genome in genomes_to_deactivate:
+            genome.active = False
+            genome.save()
+
+    def deactivate_all_loci(self):
+        """
+        Deactivate all Locus instances associated with this Project.
+        """
+        loci_to_deactivate = Locus.objects.filter(project=self, active=True)
+
+        # Deactivate each locus
+        for locus in loci_to_deactivate:
+            locus.active = False
+            locus.save()    
+
+    def deactivate_all_metadata_categories(self):
+        """
+        Deactivate all metadata category instances associated with this Project.
+        """
+        meta_to_deactivate = MetadataCategory.objects.filter(project=self, active=True)
+
+        # Deactivate each metadata cat
+        for meta in meta_to_deactivate:
+            meta.active = False
+            meta.save()
 
 class MetadataCategory(models.Model):
+    """
+    Model representing a metadata category.
+    Represents a column in metadata table.
+    Active state determines whether column is added to
+    table.
+    """
     name = models.CharField(max_length=255, unique=True)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    active = models.BooleanField(default=True)
+
     def __str__(self):
+        """
+        String representation of the metadata category.
+        """
         return f"{self.name}"
+    
+    @property
+    def count_values(self):
+        """
+        Property returning the count of unique metadata values associated with the metadata category.
+        """
+        return self.metadata_set.all().values_list('value', flat=True).distinct().count()
 
-
-class Metadata(models.Model):
-    category = models.ForeignKey(MetadataCategory, on_delete=models.CASCADE)
-    value = models.CharField(max_length=255)
-
-    def __str__(self):
-        return f"{self.category} (Value: {self.value})"
 
 class Locus(models.Model):
+    """
+    Model representing a locus.
+    Represents a column in allele table.
+    Active state determines whether column is added to
+    table.
+    """
     name = models.CharField(max_length=255)
-    organism = models.ForeignKey(Organism, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    active = models.BooleanField(default=True)
 
     @property
     def db_fasta_path(self):
+        """
+        Property returning the URL for the locus's alleles in FASTA format.
+        """
         return 'https://rest.pubmlst.org/db/{0}/loci/{1}/alleles_fasta'.format(
             self.organism.db_seqdef, self.name)
     
     @property
     def count_alleles(self):
+        """
+        Property returning the count of unique alleles associated with the locus.
+        """
+        return self.allele_set.all().values_list('value', flat=True).distinct().count()
+    
+    def __str__(self):
+        """
+        String representation of the locus.
+        """
+        return f"{self.name} (Org: {self.organism.name})"
+
+class Genome(models.Model):
+    """
+    Model representing a genome.
+    Represents index in allele and metadata tables.
+    Active state determines whether row is added to
+    table.
+    """
+    name = models.PositiveIntegerField()
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    active = models.BooleanField(default=True)
+
+    def count_metadata(self):
+        """
+        Method returning the count of metadata associated with the genome.
+        """
+        return self.metadata_set.count()
+    
+    def count_alleles(self):
+        """
+        Method returning the count of alleles associated with the genome.
+        """
         return self.allele_set.count()
     
     def __str__(self):
-        return f"{self.name} (Org: {self.organism.name})"
-
-class Allele(models.Model):
-    name = models.PositiveIntegerField()
-    locus = models.ForeignKey(Locus, on_delete=models.CASCADE)
-    
-    def __str__(self):
-        return f"Locus: {self.locus.name} (ID: {self.name})"
-
-class Genome(models.Model):
-    name = models.PositiveIntegerField()
-    organism = models.ForeignKey(Organism, on_delete=models.CASCADE)
-    alleles = models.ManyToManyField(Allele)
-    metadata = models.ManyToManyField(Metadata)
-
-    def count_metadata(self):
-        return self.metadata.count()
-    
-    def count_alleles(self):
-        return self.alleles.count()
-    
-    def count_unique_loci(self):
-        return Locus.objects.filter(allele__genome=self).distinct().count()
-    
-    def metadata_fields(self):
-        return MetadataCategory.objects.filter(metadata__genome=self).distinct()
-    
-    def __str__(self):
-        return f"{self.name}"
-
-
-class Project(models.Model):
-    name = models.CharField(max_length=255)
-    description = models.CharField(max_length=255, null=True, blank=True)
-    notes = models.TextField(null=True, blank=True)
-    loci = models.ManyToManyField(Locus)
-    genomes = models.ManyToManyField(Genome)
-    organism = models.ForeignKey(Organism, on_delete=models.CASCADE, null=True, blank=True)
-    created_on = models.DateTimeField(auto_now_add=True, db_index=True, null=True)
-
-
-
-
-    @property
-    def count_loci(self):
-        return self.loci.count()
-    
-    @property
-    def count_genomes(self):
-        return self.genomes.count()
-    
-    @property
-    def count_metadata(self):
-        return MetadataCategory.objects.filter(metadata__genome__project=self).distinct().count()
-
-    def __str__(self):
+        """
+        String representation of the genome.
+        """
         return f"{self.name}"
     
     class Meta:
-        ordering = ("-created_on",)
-
+        ordering = ("name",)
+    
     
 
+class Allele(models.Model):
+    """
+    Model representing an allele.
+    Represents values of allele table. 
+    """
+    locus = models.ForeignKey(Locus, on_delete=models.CASCADE)
+    genome = models.ForeignKey(Genome, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    value = models.CharField(max_length=64)
+    
+    def __str__(self):
+        """
+        String representation of the allele.
+        """
+        return f"Locus: {self.locus.name} (ID: {self.value} Genome {self.genome.name} Project {self.project.id})"
+
+
+class Metadata(models.Model):
+    """
+    Model representing metadata.
+    Represents values in metadata table.
+    """
+    category = models.ForeignKey(MetadataCategory, on_delete=models.CASCADE)
+    genome = models.ForeignKey(Genome, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    value = models.CharField(max_length=255)
+
+    def __str__(self):
+        """
+        String representation of the metadata.
+        """
+        return f"{self.category} (Value: {self.value}, Genome {self.genome.name} Project {self.project.id})"
 
 class TargetCollection(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)

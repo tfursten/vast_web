@@ -15,7 +15,7 @@
         <thead>
             
             <tr>
-                <th>Project Name</th>
+                <th>Project</th>
                 <th>Organism</th>
                 <th>Data</th>
                 <th>Genomes</th>
@@ -27,35 +27,34 @@
             {% for project in project_list %}
             <tr>
                 <td>
-                <a class="table-link" href="{% url 'targets:project_delete' project.id %}">
-                    <span data-feather="trash" style="display: inline-block; margin-right: 10px; align-items: center; color:red;">
-                    </span>
-                </a>
-                <a class="table-link" href="{% url 'targets:project_detail' project.id %}">
-                    {{ project.name }} 
-                </a>
-
+                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:project_detail' project.id %}"><span data-feather="check-circle" style="display: inline-block;margin-right: 10px;"></span>{{ project.name}}</a>
+                    <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:project_update' project.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
+                    <a role="button" class="btn btn-outline-danger btn-sm" href="{% url 'targets:project_delete' project.id %}"><span data-feather="trash" style="display: inline-block;"></span></a>
                 </td>
                 {% if project.organism %}
                     <td>
                         <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:organism_detail' project.organism.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px; align-items: center;"></span>{{ project.organism.name }}</a>
                     </td>
 
-                    {% if project.count_genomes %}
+                    {% if project.count_genomes or project.count_loci %}
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="#"><span data-feather="eye" style="display: inline-block;;"></span></a>
-                            <a role="button" class="btn btn-outline-primary btn-sm" href="#"><span data-feather="edit" style="display: inline-block;;"></span></a>
-                            <a role="button" class="btn btn-outline-danger btn-sm" href="#"><span data-feather="trash" style="display: inline-block;;"></span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:data_list' project.id %}"><span data-feather="eye" style="display: inline-block;"></span></a>
+                            <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:add_data' project.organism.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
+                            <a role="button" class="btn btn-outline-danger btn-sm" href="{% url 'targets:data_delete' project.id %}"><span data-feather="trash" style="display: inline-block;"></span></a>
 
                         </td>
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:genome_list' project.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_genomes}}</span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:genome_list' project.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_active_genomes}}</span></a>
+                            <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:select_genomes' project.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
                         </td>
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:locus_list' project.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_loci}}</span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:locus_list' project.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_active_loci}}</span></a>
+                            <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:select_loci' project.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
+
                         </td>
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="#"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_metadata}}</span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:metacat_list' project.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_active_metadata}}</span></a>
+                            <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:select_metacat' project.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
                         </td>
                     {% else %}
                         <td>
