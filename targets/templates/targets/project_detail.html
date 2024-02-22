@@ -12,19 +12,19 @@
       <li class="list-group-item"><Strong>Organism:</Strong><a href="{% url 'targets:select_organism' project.id %}"> Select organism </a></li>
     {% endif %}
 
-    {% if project.count_loci %}
+    {% if project.data %}
     <li class="list-group-item"><Strong>Loci:</Strong> <a href="{% url 'targets:locus_list' project.id %}"> {{ project.count_active_loci }} active / {{ project.count_loci }} total</a>
       <a href="{% url 'targets:select_loci' project.id %}"><span data-feather="edit" style="display: inline-block; margin-left: 15px;"></span></a>
     {% else %}
     <li class="list-group-item"><Strong>Loci:</Strong> <a href="{% url 'targets:add_data' project.id %}"> Add Data </a></li>
     {% endif %}
-    {% if project.count_genomes %}
+    {% if project.data %}
     <li class="list-group-item"><Strong>Genomes:</Strong> <a href="{% url 'targets:genome_list' project.id %}"> {{ project.count_active_genomes }} active / {{ project.count_genomes }} total</a>
       <a href="{% url 'targets:select_genomes' project.id %}"><span data-feather="edit" style="display: inline-block; margin-left: 15px;"></span></a>
     {% else %}
     <li class="list-group-item"><Strong>Genomes:</Strong> <a href="{% url 'targets:add_data' project.id %}"> Add Data </a></li>
     {% endif %}
-    {% if project.count_metadata %}
+    {% if project.data %}
     <li class="list-group-item"><Strong>Metadata Categories:</Strong> <a href="{% url 'targets:metacat_list' project.id %}"> {{ project.count_active_metadata }} active / {{ project.count_metadata }} total</a>
       <a href="{% url 'targets:select_metacat' project.id %}"><span data-feather="edit" style="display: inline-block; margin-left: 15px;"></span></a>
     {% else %}

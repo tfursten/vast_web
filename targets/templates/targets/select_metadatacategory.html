@@ -59,15 +59,18 @@
         dom: 'B<"clear">lfrtip',
 
         columns: [
-
-                { 
-                    data: "name",
-                    title: "Category"
-                },
-                { 
-                    data: "values",
-                    title: "Unique Values"
-                },
+        { 
+            data: "name",
+            title: "Category"
+        },
+        { 
+            data: "values",
+            title: "No. Unique Values"
+        },
+        { 
+            data: "genomes",
+            title: "No. Genomes with Values"
+        },
             ],
         select: {
             style: 'multi+shift'  
@@ -90,10 +93,6 @@
             'selectNone',
             {
             extend: 'copy',
-            title: 'Metadata List'
-            },
-            {
-            extend: 'pdf',
             title: 'Metadata List'
             },
             {

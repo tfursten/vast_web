@@ -36,7 +36,7 @@
                         <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:organism_detail' project.organism.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px; align-items: center;"></span>{{ project.organism.name }}</a>
                     </td>
 
-                    {% if project.count_genomes or project.count_loci %}
+                    {% if project.data %}
                         <td>
                             <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:data_list' project.id %}"><span data-feather="eye" style="display: inline-block;"></span></a>
                             <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:add_data' project.organism.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>

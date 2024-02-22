@@ -102,7 +102,7 @@ def select_organism_list(request, pk):
         project.save()
         if created:
             messages.success(
-                request, f"Successfully created {organism.name} created and added to project {project.name}.")
+                request, f"Successfully created {organism.name} and added to project {project.name}.")
         else:
             messages.success(
                 request, f"Succesfully updated {organism.name} and added to project {project.name}.")
@@ -161,127 +161,6 @@ def get_organism_json(request):
 #         return reverse('targets:project_detail', args=(self.object.id,))
 
 
-# ============== Data ==================================
-
-
-def load_project_data(request, pk):
-    if request.method == 'POST':
-        form = DataUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            file_name = request.FILES['file']
-            project = Project.objects.get(pk=pk)
-            # Set all columns and row to inactive
-            project.deactivate_all_genomes()
-            project.deactivate_all_loci()
-            project.deactivate_all_metadata_categories()
-
-            organism = project.organism
-            
-            df = pd.read_excel(file_name, index_col='id')
-            print(df.head())
-            # pull existing genome and loci data from database
-            # to filter out any values from the table that may
-            # not belong.
-            db_genomes = organism.get_genomes_list(request)
-            db_loci = organism.get_loci_list(request)
-    
-            loci_cols = df.columns.intersection(db_loci)
-            genome_idx = df.index.intersection(db_genomes)
-
-            threshold_percentage = 75
-
-            # Calculate the minimum number of non-NaN values required based on the threshold percentage
-            threshold_count = int((100 - threshold_percentage) / 100 * len(loci_cols))
-
-            # Drop rows with more than the specified threshold count of NaN values
-            df = df.dropna(thresh=threshold_count)
-
-            # Consider all other columns to be metadata
-            metadata_cols = df.columns.difference(db_loci)
-            # keep only rows (genomes) that are found in the database
-            meta_df = df.loc[genome_idx, metadata_cols].to_dict()
-            alleles_df = df.loc[genome_idx, loci_cols].to_dict()
-            # TODO: add warning if alleles/genomes are removed
-            # add loci to database
-            loci_dict = {}
-            print("creating LOCI")
-            for locus in loci_cols:
-                locus_inst, created = Locus.objects.get_or_create(
-                    name=locus,
-                    project=project,
-                )
-                if not created:
-                    # Created are active by default but if
-                    # locus already exists move to active
-                    locus_inst.active = True
-                    locus_inst.save()
-                loci_dict[locus] = locus_inst
-            print("creating GENOMES")
-
-            # add genomes to database
-            genome_dict = {}
-            for genome in genome_idx:
-                genome_inst, created = Genome.objects.get_or_create(
-                    name=genome,
-                    project=project,
-                )
-                if not created:
-                    # Created are active by default but if
-                    # genome already exists move to active
-                    genome_inst.active = True
-                    genome_inst.save()
-                genome_dict[genome] = genome_inst
-            print("creating metacat")
-
-            # add metadata cateories to database
-            meta_dict = {}
-            for meta in metadata_cols:
-                meta_inst, created = MetadataCategory.objects.get_or_create(
-                    name=meta,
-                    project=project,
-                )
-                if not created:
-                    # Created are active by default but if
-                    # metadata cat already exists move to active
-                    meta_inst.active = True
-                    meta_inst.save()
-                meta_dict[meta] = meta_inst
-
-            # add alleles
-            print("creating alleles")
-
-            for locus, values in alleles_df.items():
-                locus_inst = loci_dict[locus]
-                for genome, allele in values.items():
-                    if str(allele) != 'nan': # don't add alleles with missing data
-                        Allele.objects.update_or_create(
-                            genome=genome_dict[genome],
-                            locus=locus_inst,
-                            project=project,
-                            defaults={'value': allele}
-                            )
-            print("creating METADATA")
-
-            # add metadata
-            for metacat, values in meta_df.items():
-                metacat_inst = meta_dict[metacat]
-                for genome, value in values.items():
-                    if str(value) != 'nan': # don't add metadata with missing values
-                        Metadata.objects.update_or_create(
-                            genome=genome_dict[genome],
-                            category=metacat_inst,
-                            project=project,
-                            defaults={'value': value}
-                            )
-                       
-
-            return redirect('targets:project_detail', pk=pk)
-    else:
-        form = DataUploadForm()
-
-    return render(request, 'targets/data_upload.html', {'form': form})
-
-
 
 # ============== GENOME ==================================
 class GenomeListView(ListView):
@@ -311,8 +190,8 @@ def get_genomes_json(request, pk, active=None):
         all_rows.append({
             'id': genome.id,
             'name': genome.name,
-            'alleles': genome.count_alleles(),
-            'metadata': genome.count_metadata(),
+            'alleles': genome.alleles,
+            'metadata': genome.metadata,
             'active': genome.active
         })
 
@@ -367,7 +246,7 @@ def get_loci_json(request, pk, active=None):
         all_rows.append({
             'id': locus.id,
             'name': locus.name,
-            'alleles': locus.count_alleles,
+            'alleles': locus.alleles,
             'active': locus.active
         })
 
@@ -417,7 +296,8 @@ def get_metacat_json(request, pk, active=None):
         all_rows.append({
             'id': dat.id,
             'name': dat.name,
-            'values': dat.count_values,
+            'values': dat.values,
+            'genomes': dat.genomes,
             'active': dat.active
         })
 
@@ -440,59 +320,340 @@ def select_metacat_list(request, pk):
     return render(request, "targets/select_metadatacategory.html", {'pk': pk})
 
 # ============== DATA ==================================
+# def load_project_data(request, pk):
+#     if request.method == 'POST':
+#         form = DataUploadForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             file_name = request.FILES['file']
+#             project = Project.objects.get(pk=pk)
+#             # Set all columns and row to inactive
+#             project.deactivate_all_genomes()
+#             project.deactivate_all_loci()
+#             project.deactivate_all_metadata_categories()
 
+#             organism = project.organism
+            
+#             df = pd.read_excel(file_name, index_col='id')
+#             print(df.head())
+#             # pull existing genome and loci data from database
+#             # to filter out any values from the table that may
+#             # not belong.
+#             db_genomes = organism.get_genomes_list(request)
+#             db_loci = organism.get_loci_list(request)
+    
+#             loci_cols = df.columns.intersection(db_loci)
+#             genome_idx = df.index.intersection(db_genomes)
+
+#             threshold_percentage = 75
+
+#             # Calculate the minimum number of non-NaN values required based on the threshold percentage
+#             threshold_count = int((100 - threshold_percentage) / 100 * len(loci_cols))
+
+#             # Drop rows with more than the specified threshold count of NaN values
+#             df = df.dropna(thresh=threshold_count)
+
+#             # Consider all other columns to be metadata
+#             metadata_cols = df.columns.difference(db_loci)
+#             # keep only rows (genomes) that are found in the database
+#             meta_df = df.loc[genome_idx, metadata_cols].to_dict()
+#             alleles_df = df.loc[genome_idx, loci_cols].to_dict()
+#             # TODO: add warning if alleles/genomes are removed
+#             # add loci to database
+#             loci_dict = {}
+#             print("creating LOCI")
+#             for locus in loci_cols:
+#                 locus_inst, created = Locus.objects.get_or_create(
+#                     name=locus,
+#                     project=project,
+#                 )
+#                 if not created:
+#                     # Created are active by default but if
+#                     # locus already exists move to active
+#                     locus_inst.active = True
+#                     locus_inst.save()
+#                 loci_dict[locus] = locus_inst
+#             print("creating GENOMES")
+
+#             # add genomes to database
+#             genome_dict = {}
+#             for genome in genome_idx:
+#                 genome_inst, created = Genome.objects.get_or_create(
+#                     name=genome,
+#                     project=project,
+#                 )
+#                 if not created:
+#                     # Created are active by default but if
+#                     # genome already exists move to active
+#                     genome_inst.active = True
+#                     genome_inst.save()
+#                 genome_dict[genome] = genome_inst
+#             print("creating metacat")
+
+#             # add metadata cateories to database
+#             meta_dict = {}
+#             for meta in metadata_cols:
+#                 meta_inst, created = MetadataCategory.objects.get_or_create(
+#                     name=meta,
+#                     project=project,
+#                 )
+#                 if not created:
+#                     # Created are active by default but if
+#                     # metadata cat already exists move to active
+#                     meta_inst.active = True
+#                     meta_inst.save()
+#                 meta_dict[meta] = meta_inst
+
+#             # add alleles
+#             print("creating alleles")
+
+#             for locus, values in alleles_df.items():
+#                 locus_inst = loci_dict[locus]
+#                 for genome, allele in values.items():
+#                     if str(allele) != 'nan': # don't add alleles with missing data
+#                         Allele.objects.update_or_create(
+#                             genome=genome_dict[genome],
+#                             locus=locus_inst,
+#                             project=project,
+#                             defaults={'value': allele}
+#                             )
+#             print("creating METADATA")
+
+#             # add metadata
+#             for metacat, values in meta_df.items():
+#                 metacat_inst = meta_dict[metacat]
+#                 for genome, value in values.items():
+#                     if str(value) != 'nan': # don't add metadata with missing values
+#                         Metadata.objects.update_or_create(
+#                             genome=genome_dict[genome],
+#                             category=metacat_inst,
+#                             project=project,
+#                             defaults={'value': value}
+#                             )
+                       
+
+#             return redirect('targets:project_detail', pk=pk)
+#     else:
+#         form = DataUploadForm()
+
+#     return render(request, 'targets/data_upload.html', {'form': form})
+
+
+def load_project_data(request, pk):
+    if request.method == 'POST':
+        form = DataUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            file_name = request.FILES['file']
+            project = Project.objects.get(pk=pk)
+            project.data = file_name
+            project.save()
+            organism = project.organism
+            # Read data from file
+            df = pd.read_excel(file_name, index_col='id')
+            # pull existing loci data from database
+            # to filter out any values from the table that may
+            # not belong. 
+            db_loci = organism.get_loci_list(request)
+    
+            loci_cols = df.columns.intersection(db_loci)
+            threshold_percentage = 75
+
+            # Calculate the minimum number of non-NaN values required based on the threshold percentage
+            threshold_count = int((100 - threshold_percentage) / 100 * len(loci_cols))
+
+            # Drop rows with more than the specified threshold count of NaN values
+            df = df.dropna(thresh=threshold_count)
+            genome_idx = df.index # update to reflect dropped rows
+            # Consider all other columns to be metadata
+            metadata_cols = df.columns.difference(db_loci)
+
+            meta_df = df.loc[genome_idx, metadata_cols]
+            alleles_df = df.loc[genome_idx, loci_cols]
+            # TODO: add warning if alleles/genomes are removed
+            
+            # add LOCI to database
+            print("UPDATING Loci")
+
+            # ids of existing loci that should be activated (in uploaded table)
+            Locus.objects.filter(
+                project=project,
+                name__in=loci_cols).update(active=True)
+            # ids of existing loci that should be deactivated (not in uploaded table)
+            Locus.objects.exclude(
+                project=project, name__in=loci_cols).update(active=False)
+            # New loci that are not in database to create
+            new_loci = list(set(loci_cols) - set(Locus.objects.filter(
+                project=project,
+                name__in=loci_cols).values_list('name', flat=True)))
+            # bulk create new loci
+            Locus.objects.bulk_create(
+                [Locus(project=project, name=name) for name in new_loci])
+            # count number of unique alleles and save to instance
+            all_loci = Locus.objects.filter(project=project, active=True)
+            for locus in all_loci:
+                locus.alleles = alleles_df[locus.name].dropna().nunique()
+                locus.save()
+
+            # add GENOMES to database
+            print("UPDATING genomes")
+            # ids of existing genomes that should be activated (in uploaded table)
+            Genome.objects.filter(
+                project=project,
+                name__in=genome_idx).update(active=True)
+            # ids of existing genomes that should be deactivated (not in uploaded table)
+            Genome.objects.exclude(
+                project=project, name__in=genome_idx).update(active=False)
+            # New Genomes that are not in database to create
+            new_genomes = list(set(genome_idx) - set(Genome.objects.filter(
+                project=project,
+                name__in=genome_idx).values_list('name', flat=True)))
+            # bulk create new genomes
+            Genome.objects.bulk_create(
+                [Genome(project=project, name=name) for name in new_genomes])
+            
+            # count number of unique alleles and save to instance
+            all_genomes = Genome.objects.filter(project=project, active=True)
+            for genome in all_genomes:
+                genome.alleles = alleles_df.loc[genome.name].dropna().size
+                genome.metadata = meta_df.loc[genome.name].dropna().size
+                genome.save()
+            
+
+            # add METADATA CATEGORIES to database
+            print("UPDATING metacategories")
+            # ids of existing metacats that should be activated (in uploaded table)
+            MetadataCategory.objects.filter(
+                project=project,
+                name__in=metadata_cols).update(active=True)
+            # ids of existing metacats that should be deactivated (not in uploaded table)
+            MetadataCategory.objects.exclude(
+                project=project, name__in=metadata_cols).update(active=False)
+            # New metacats that are not in database to create
+            new_metacat = list(set(metadata_cols) - set(MetadataCategory.objects.filter(
+                project=project,
+                name__in=metadata_cols).values_list('name', flat=True)))
+            # bulk create new metacats
+            MetadataCategory.objects.bulk_create(
+                [MetadataCategory(project=project, name=name) for name in new_metacat])
+
+            # count number of genomes with data and unique values and save to instance
+            all_meta = MetadataCategory.objects.filter(project=project, active=True)
+            for meta in all_meta:
+                meta.values = meta_df[meta.name].dropna().nunique()
+                meta.genomes = meta_df[meta.name].dropna().size
+                meta.save()
+
+            # genome_dict = {v.name: v for v in Genome.objects.filter(project=project, active=True)}
+            # locus_dict = {v.name: v for v in Locus.objects.filter(project=project, active=True)}
+            # metacat_dict = {v.name: v for v in MetadataCategory.objects.filter(project=project, active=True)}
+
+            # # add alleles
+            # print("creating alleles")
+
+            # for locus, values in alleles_df.items():
+            #     locus_inst = locus_dict[locus]
+            #     print(locus)
+            #     for genome, allele in values.items():
+            #         Allele.objects.update_or_create(
+            #             genome=genome_dict[genome],
+            #             locus=locus_inst,
+            #             project=project,
+            #             defaults={'value': allele}
+            #             )
+            # print("creating METADATA")
+
+            # # add metadata
+            # for metacat, values in meta_df.items():
+            #     metacat_inst = metacat_dict[metacat]
+            #     for genome, value in values.items():
+            #         Metadata.objects.update_or_create(
+            #             genome=genome_dict[genome],
+            #             category=metacat_inst,
+            #             project=project,
+            #             defaults={'value': value}
+                        # )
+                       
+            return redirect('targets:project_detail', pk=pk)
+    else:
+        form = DataUploadForm()
+
+    return render(request, 'targets/data_upload.html', {'form': form})
 
 def data_list_view(request, pk):
     project = Project.objects.get(id=pk)
-    active_genomes = project.get_active_genomes()
-    active_loci = project.get_active_loci()
-    active_metadata = project.get_active_metadata()
-    alleles = Allele.objects.filter(
-        project=project,
-        genome__in=active_genomes.values_list('id', flat=True),
-        locus__in=active_loci.values_list('id', flat=True)
-        ).values('genome', 'locus', 'value')
-    meta = Metadata.objects.filter(
-        project=project,
-        genome__in=active_genomes.values_list('id', flat=True),
-        category__in=active_metadata.values_list('id', flat=True)
-        ).values('genome', 'category', 'value')
-    allele_df = pd.DataFrame.from_dict(alleles)
-    allele_df = allele_df.pivot(index="genome", columns='locus', values='value')
-    idx_dict = {gen.id: gen.name for gen in active_genomes}
-    allele_df.index = [idx_dict.get(i) for i in allele_df.index]
-    col_dict = {loc.id: loc.name for loc in active_loci}
-    allele_df.columns = [col_dict.get(i) for i in allele_df.columns]
-
-    meta_df = pd.DataFrame.from_dict(meta)
-    meta_df = meta_df.pivot(index="genome", columns='category', values='value')
-    idx_dict = {gen.id: gen.name for gen in active_genomes}
-    meta_df.index = [idx_dict.get(i) for i in meta_df.index]
-    col_dict = {loc.id: loc.name for loc in active_metadata}
-    meta_df.columns = [col_dict.get(i) for i in meta_df.columns]
-
-    df = meta_df.join(allele_df)
+    active_genomes = list(project.get_active_genomes().values_list('name', flat=True))
+    active_loci = list(project.get_active_loci().values_list('name', flat=True))
+    active_metadata = list(project.get_active_metadata().values_list('name', flat=True))
+    print(active_genomes, active_loci, active_metadata)
+    df = pd.read_excel(project.data, index_col=0)
+    df.index.name = "Genome ID"
+    df = df.loc[active_genomes, active_metadata + active_loci]
     df = df.fillna('')
-    print(df.head())
-    html = df.to_html(
+    html = df.reset_index().to_html(
         table_id="datatable",
         classes=['display', 'table', 'table-hover'],
-        justify="left", index=True)
-    print(html[:100])
+        justify="left", index=False)
 
     return render(
                 request, 'targets/data_table.html',
                 {'table': html, 'project': project}
                 )
 
+
+
+# def data_list_view(request, pk):
+#     project = Project.objects.get(id=pk)
+#     active_genomes = project.get_active_genomes()
+#     active_loci = project.get_active_loci()
+#     active_metadata = project.get_active_metadata()
+#     alleles = Allele.objects.filter(
+#         project=project,
+#         genome__in=active_genomes.values_list('id', flat=True),
+#         locus__in=active_loci.values_list('id', flat=True)
+#         ).values('genome', 'locus', 'value')
+#     meta = Metadata.objects.filter(
+#         project=project,
+#         genome__in=active_genomes.values_list('id', flat=True),
+#         category__in=active_metadata.values_list('id', flat=True)
+#         ).values('genome', 'category', 'value')
+#     allele_df = pd.DataFrame.from_dict(alleles)
+#     allele_df = allele_df.pivot(index="genome", columns='locus', values='value')
+#     idx_dict = {gen.id: gen.name for gen in active_genomes}
+#     allele_df.index = [idx_dict.get(i) for i in allele_df.index]
+#     col_dict = {loc.id: loc.name for loc in active_loci}
+#     allele_df.columns = [col_dict.get(i) for i in allele_df.columns]
+
+#     meta_df = pd.DataFrame.from_dict(meta)
+#     meta_df = meta_df.pivot(index="genome", columns='category', values='value')
+#     idx_dict = {gen.id: gen.name for gen in active_genomes}
+#     meta_df.index = [idx_dict.get(i) for i in meta_df.index]
+#     col_dict = {loc.id: loc.name for loc in active_metadata}
+#     meta_df.columns = [col_dict.get(i) for i in meta_df.columns]
+
+#     df = meta_df.join(allele_df)
+#     df = df.fillna('')
+#     print(df.head())
+#     html = df.to_html(
+#         table_id="datatable",
+#         classes=['display', 'table', 'table-hover'],
+#         justify="left", index=True)
+#     print(html[:100])
+
+#     return render(
+#                 request, 'targets/data_table.html',
+#                 {'table': html, 'project': project}
+#                 )
+
     
 
 def data_delete_view(request, pk):
     project = Project.objects.get(pk=pk)
     if request.method == 'POST':
-        project.get_genomes().delete()
-        project.get_loci().delete()
-        project.get_metadata().delete()
+
+        project.deactivate_all_genomes()
+        project.deactivate_all_loci()
+        project.deactivate_all_metadata_categories()
+        project.data = None
+        project.save()
         # Handle the confirmation of the delete action
         return redirect('targets:project_list')  # Redirect to a success page after deletion
 

@@ -43,6 +43,9 @@ class Organism(models.Model):
         res = json.loads(r.text)
         return list(map(lambda x: split(x, "/")[-1], res['loci']))
 
+
+
+
 class Project(models.Model):
     """
     Model representing a project.
@@ -51,6 +54,7 @@ class Project(models.Model):
     description = models.CharField(max_length=255, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     organism = models.ForeignKey(Organism, on_delete=models.CASCADE, null=True, blank=True)
+    data = models.FileField(upload_to='uploads/', null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True, db_index=True, null=True)
     
     class Meta:
@@ -165,34 +169,27 @@ class Project(models.Model):
         """
         Deactivate all Genome instances associated with this Project.
         """
-        genomes_to_deactivate = Genome.objects.filter(project=self, active=True)
+        Genome.objects.filter(project=self, active=True).update(active=False)
 
-        # Deactivate each genome
-        for genome in genomes_to_deactivate:
-            genome.active = False
-            genome.save()
 
     def deactivate_all_loci(self):
         """
         Deactivate all Locus instances associated with this Project.
         """
-        loci_to_deactivate = Locus.objects.filter(project=self, active=True)
-
-        # Deactivate each locus
-        for locus in loci_to_deactivate:
-            locus.active = False
-            locus.save()    
+        Locus.objects.filter(project=self, active=True).update(active=False)
+   
 
     def deactivate_all_metadata_categories(self):
         """
         Deactivate all metadata category instances associated with this Project.
         """
-        meta_to_deactivate = MetadataCategory.objects.filter(project=self, active=True)
+        MetadataCategory.objects.filter(project=self, active=True).update(active=False)
 
-        # Deactivate each metadata cat
-        for meta in meta_to_deactivate:
-            meta.active = False
-            meta.save()
+
+
+
+
+
 
 class MetadataCategory(models.Model):
     """
@@ -204,19 +201,18 @@ class MetadataCategory(models.Model):
     name = models.CharField(max_length=255, unique=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
+    genomes = models.PositiveIntegerField(null=True, blank=True) # number of genomes with metadata
+    values = models.PositiveIntegerField(null=True, blank=True) # number of unique values
+
+    class Meta:
+        unique_together = ('project', 'name')
 
     def __str__(self):
         """
         String representation of the metadata category.
         """
         return f"{self.name}"
-    
-    @property
-    def count_values(self):
-        """
-        Property returning the count of unique metadata values associated with the metadata category.
-        """
-        return self.metadata_set.all().values_list('value', flat=True).distinct().count()
+
 
 
 class Locus(models.Model):
@@ -229,6 +225,10 @@ class Locus(models.Model):
     name = models.CharField(max_length=255)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
+    alleles = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('project', 'name')
 
     @property
     def db_fasta_path(self):
@@ -238,12 +238,12 @@ class Locus(models.Model):
         return 'https://rest.pubmlst.org/db/{0}/loci/{1}/alleles_fasta'.format(
             self.organism.db_seqdef, self.name)
     
-    @property
-    def count_alleles(self):
-        """
-        Property returning the count of unique alleles associated with the locus.
-        """
-        return self.allele_set.all().values_list('value', flat=True).distinct().count()
+    # @property
+    # def count_alleles(self):
+    #     """
+    #     Property returning the count of unique alleles associated with the locus.
+    #     """
+    #     return self.allele_set.all().values_list('value', flat=True).distinct().count()
     
     def __str__(self):
         """
@@ -261,18 +261,21 @@ class Genome(models.Model):
     name = models.PositiveIntegerField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
-
-    def count_metadata(self):
-        """
-        Method returning the count of metadata associated with the genome.
-        """
-        return self.metadata_set.count()
+    alleles = models.PositiveIntegerField(null=True, blank=True) # number of loci with alleles
+    metadata = models.PositiveIntegerField(null=True, blank=True)
     
-    def count_alleles(self):
-        """
-        Method returning the count of alleles associated with the genome.
-        """
-        return self.allele_set.count()
+
+    # def count_metadata(self):
+    #     """
+    #     Method returning the count of metadata associated with the genome.
+    #     """
+    #     return self.metadata_set.count()
+    
+    # def count_alleles(self):
+    #     """
+    #     Method returning the count of alleles associated with the genome.
+    #     """
+    #     return self.allele_set.count()
     
     def __str__(self):
         """
@@ -282,41 +285,54 @@ class Genome(models.Model):
     
     class Meta:
         ordering = ("name",)
+        unique_together = ('project', 'name')
     
     
 
-class Allele(models.Model):
-    """
-    Model representing an allele.
-    Represents values of allele table. 
-    """
-    locus = models.ForeignKey(Locus, on_delete=models.CASCADE)
-    genome = models.ForeignKey(Genome, on_delete=models.CASCADE)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    value = models.CharField(max_length=64)
+# class Allele(models.Model):
+#     """
+#     Model representing an allele.
+#     Represents values of allele table. 
+#     """
+#     locus = models.ForeignKey(Locus, on_delete=models.CASCADE)
+#     genome = models.ForeignKey(Genome, on_delete=models.CASCADE)
+#     project = models.ForeignKey(Project, on_delete=models.CASCADE)
+#     value = models.CharField(max_length=64)
+
+#     class Meta:
+#         unique_together = ('project', 'locus', 'genome')
+#         indexes = [
+#             models.Index(fields=['project', 'locus', 'genome'])
+#         ]
     
-    def __str__(self):
-        """
-        String representation of the allele.
-        """
-        return f"Locus: {self.locus.name} (ID: {self.value} Genome {self.genome.name} Project {self.project.id})"
+#     def __str__(self):
+#         """
+#         String representation of the allele.
+#         """
+#         return f"Locus: {self.locus.name} (ID: {self.value} Genome {self.genome.name} Project {self.project.id})"
 
 
-class Metadata(models.Model):
-    """
-    Model representing metadata.
-    Represents values in metadata table.
-    """
-    category = models.ForeignKey(MetadataCategory, on_delete=models.CASCADE)
-    genome = models.ForeignKey(Genome, on_delete=models.CASCADE)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    value = models.CharField(max_length=255)
+# class Metadata(models.Model):
+#     """
+#     Model representing metadata.
+#     Represents values in metadata table.
+#     """
+#     category = models.ForeignKey(MetadataCategory, on_delete=models.CASCADE)
+#     genome = models.ForeignKey(Genome, on_delete=models.CASCADE)
+#     project = models.ForeignKey(Project, on_delete=models.CASCADE)
+#     value = models.CharField(max_length=255)
 
-    def __str__(self):
-        """
-        String representation of the metadata.
-        """
-        return f"{self.category} (Value: {self.value}, Genome {self.genome.name} Project {self.project.id})"
+#     class Meta:
+#         unique_together = ('project', 'category', 'genome')
+#         indexes = [
+#             models.Index(fields=['project', 'category', 'genome'])
+#         ]
+
+#     def __str__(self):
+#         """
+#         String representation of the metadata.
+#         """
+#         return f"{self.category} (Value: {self.value}, Genome {self.genome.name} Project {self.project.id})"
 
 class TargetCollection(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
