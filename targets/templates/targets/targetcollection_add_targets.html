@@ -1,0 +1,40 @@
+{% extends "targets/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<h1 class="border-bottom">{{ targetcollection.name }}</h1>
+<legend class="mb-6">Add targets to collection</legend>
+<form method="post" id="targetform">{% csrf_token %}
+    {{ form | crispy }}
+    <div class="d-grid gap-2 d-md-block mt-2">
+        <button class="btn btn-success" type="submit" id="submitBtn">Run</button>
+        <a class="btn btn-outline-danger mr-5" href="{% url 'targets:target_collection_detail' targetcollection.project.id targetcollection.id %}" role="button">Cancel</a>
+        <div id="workingMessage" style="display: none;" class="text-muted mt-3"><small>Still working... Optimizing large datasets may take some time.</small></div>
+
+    </div>
+</form>
+{% endblock content %}
+{% block js %}
+
+<script>
+    $(document).ready(function () {
+        $('#targetform').submit(function (e) {
+            // Prevent the default form submission
+            // e.preventDefault();
+
+            // Disable the submit button to prevent multiple submissions
+            $('#submitBtn').prop('disabled', true);
+
+            // Change the button text to a loading indicator
+            $('#submitBtn').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running');
+
+            setTimeout(function () {
+                // Show the "Still Working" message
+                $('#workingMessage').show();
+            }, 10000); // 10 seconds delay
+
+
+
+        });
+    });
+</script>
+{% endblock js %}

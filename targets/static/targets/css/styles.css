@@ -16,3 +16,6 @@ body {
 
 
 
+.form-group {
+  margin-bottom: 25px; /* Adjust the value to increase or decrease spacing */
+}

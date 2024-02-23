@@ -1,6 +1,7 @@
 from django.db import models
 import requests
 import json
+import pandas as pd
 
 class Organism(models.Model):
     """
@@ -55,6 +56,7 @@ class Project(models.Model):
     notes = models.TextField(null=True, blank=True)
     organism = models.ForeignKey(Organism, on_delete=models.CASCADE, null=True, blank=True)
     data = models.FileField(upload_to='uploads/', null=True, blank=True)
+    imputed_data = models.FileField(upload_to='uploads/', null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True, db_index=True, null=True)
     
     class Meta:
@@ -110,6 +112,13 @@ class Project(models.Model):
         Property returning the count of unique metadata categories associated with the project.
         """
         return self.metadatacategory_set.filter(active=True).count()
+    
+    @property
+    def count_target_collections(self):
+        """
+        Property returning the number of target collections associated with the project.
+        """
+        return self.targetcollection_set.filter().count()
     
     def get_genomes(self):
         """
@@ -185,10 +194,24 @@ class Project(models.Model):
         """
         MetadataCategory.objects.filter(project=self, active=True).update(active=False)
 
+    def get_allele_table(self):
+        """
+        return dataframe using active genomes and loci
+        """
+        active_genomes = list(self.get_active_genomes().values_list('name', flat=True))
+        active_loci = list(self.get_active_loci().values_list('name', flat=True))
+        df = pd.read_excel(self.data, index_col=0, na_values='', keep_default_na=False, dtype=str)
+        return df.loc[active_genomes, active_loci].fillna('')
 
-
-
-
+    def get_metadata_table(self):
+        """
+        return dataframe using active genomes and metadata
+        """
+        active_genomes = list(self.get_active_genomes().values_list('name', flat=True))
+        active_metadata = list(self.get_active_metadata().values_list('name', flat=True))
+        df = pd.read_excel(self.data, index_col=0, na_values='', keep_default_na=False, dtype=str)
+        return df.loc[active_genomes, active_metadata].fillna('')
+    
 
 
 class MetadataCategory(models.Model):
@@ -198,7 +221,7 @@ class MetadataCategory(models.Model):
     Active state determines whether column is added to
     table.
     """
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
     genomes = models.PositiveIntegerField(null=True, blank=True) # number of genomes with metadata
@@ -225,7 +248,7 @@ class Locus(models.Model):
     name = models.CharField(max_length=255)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
-    alleles = models.PositiveIntegerField(null=True, blank=True)
+    alleles = models.PositiveIntegerField(null=True, blank=True) # number of unqiue alleles
 
     class Meta:
         unique_together = ('project', 'name')
@@ -249,7 +272,7 @@ class Locus(models.Model):
         """
         String representation of the locus.
         """
-        return f"{self.name} (Org: {self.organism.name})"
+        return f"{self.name} (Org: {self.project.organism.name})"
 
 class Genome(models.Model):
     """
@@ -262,7 +285,7 @@ class Genome(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
     alleles = models.PositiveIntegerField(null=True, blank=True) # number of loci with alleles
-    metadata = models.PositiveIntegerField(null=True, blank=True)
+    metadata = models.PositiveIntegerField(null=True, blank=True) # number of metadata categories with data
     
 
     # def count_metadata(self):
@@ -287,7 +310,31 @@ class Genome(models.Model):
         ordering = ("name",)
         unique_together = ('project', 'name')
     
+
+class TargetCollection(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    description = models.TextField(max_length=255, blank=True, null=True)
+    loci = models.ManyToManyField(Locus)
+    created_on = models.DateTimeField(auto_now_add=True, db_index=True, null=True)
+
+
+    @property
+    def count_loci(self):
+        return self.loci.count()
     
+    def get_resolution(self):
+        # TODO: calculate resolution of current loci given organism genotypes in project
+        pass
+
+    class Meta:
+        ordering = ("-created_on",)
+        unique_together = ('project', 'name')
+
+
+
+
+
 
 # class Allele(models.Model):
 #     """
@@ -334,23 +381,7 @@ class Genome(models.Model):
 #         """
 #         return f"{self.category} (Value: {self.value}, Genome {self.genome.name} Project {self.project.id})"
 
-class TargetCollection(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    loci = models.ManyToManyField(Locus)
-    created_on = models.DateTimeField(auto_now_add=True, db_index=True, null=True)
 
-
-    @property
-    def count_loci(self):
-        return self.loci.count()
-    
-    def get_resolution(self):
-        # TODO: calculate resolution of current loci given organism genotypes in project
-        pass
-
-    class Meta:
-        ordering = ("-created_on",)
 
 
 

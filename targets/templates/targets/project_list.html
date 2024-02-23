@@ -21,6 +21,7 @@
                 <th>Genomes</th>
                 <th>Loci</th>
                 <th>Metadata</th>
+                <th>Target Collections</th>
             </tr>
         </thead>
         <tbody>
@@ -39,7 +40,7 @@
                     {% if project.data %}
                         <td>
                             <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:data_list' project.id %}"><span data-feather="eye" style="display: inline-block;"></span></a>
-                            <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:add_data' project.organism.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
+                            <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:add_data' project.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
                             <a role="button" class="btn btn-outline-danger btn-sm" href="{% url 'targets:data_delete' project.id %}"><span data-feather="trash" style="display: inline-block;"></span></a>
 
                         </td>
@@ -56,6 +57,17 @@
                             <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:metacat_list' project.id %}"><span data-feather="check-circle" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_active_metadata}}</span></a>
                             <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:select_metacat' project.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
                         </td>
+                        {% if project.count_target_collections %}
+                            <td>
+                                <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:target_collection_list' project.id %}"><span data-feather="list" style="display: inline-block; margin-right: 10px;"></span><span class="badge bg-success">{{ project.count_target_collections}}</span></a>
+                            </td>
+                        {% else %}
+                            <td>
+                                <a class="btn btn-outline-primary btn-sm" role="button" href="{% url 'targets:target_collection_create' project.id %}">+ Add Targets</a>
+                            </td>
+                        {% endif %}
+
+
                     {% else %}
                         <td>
                             <a class="btn btn-outline-primary btn-sm" role="button" href="{% url 'targets:add_data' project.id %}">+ Add Data</a>
@@ -69,6 +81,10 @@
                         <td>
                             <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Metadata</a>
                         </td>
+                        <td>
+                            <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Targets</a>
+                        </td>
+                        
                     {% endif %}
                    
 
@@ -87,6 +103,9 @@
                     </td>
                     <td>
                         <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Metadata</a>
+                    </td>
+                    <td>
+                        <a class="btn btn-outline-secondary disabled btn-sm" role="button" aria-disabled="true">+ Add Targets</a>
                     </td>
                 {% endif %}
 
@@ -125,10 +144,6 @@
         buttons: [ 
         {
           extend: 'copy',
-          title: 'Project List'
-        },
-        {
-          extend: 'pdf',
           title: 'Project List'
         },
         {

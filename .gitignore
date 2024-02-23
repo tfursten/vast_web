@@ -66,8 +66,7 @@ coverage.xml
 settings.py
 db.sqlite3
 db.sqlite3-journal
-lims/migrations/*.py
-
+uploads/
 # Flask stuff:
 instance/
 .webassets-cache

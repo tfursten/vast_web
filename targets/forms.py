@@ -3,6 +3,8 @@ import pandas as pd
 from django.forms import ModelForm, CheckboxInput, SelectMultiple
 from .models import *
 from django.core.validators import FileExtensionValidator
+from django.forms.widgets import CheckboxSelectMultiple
+from django.utils.safestring import mark_safe
 
 
 
@@ -13,7 +15,20 @@ class ProjectForm(ModelForm):
         widgets = {
 
         }
+
+class TargetCollectionForm(ModelForm):
+    class Meta:
+        model = TargetCollection
+        fields = ['name', 'project', 'description']
     
+    # def __init__(self, *args, **kwargs):
+    #     if 'project' in kwargs:
+    #         project = kwargs.pop('project')
+    #         kwargs.update(initial={
+    #             'project': project
+    #         })
+    #     super(TargetCollectionForm, self).__init__(*args, **kwargs)
+    #     self.fields['project'].queryset = Project.objects.order_by('name')
     
 class DataUploadForm(forms.Form):
     file = forms.FileField(label='Upload BIGSdb excel file from PubMLST')
@@ -22,3 +37,52 @@ class DataUploadForm(forms.Form):
         super().__init__(*args, **kwargs)
         # Add a FileExtensionValidator to the file_field
         self.fields['file'].validators.append(FileExtensionValidator(allowed_extensions=['xlsx']))
+
+
+class AddTargets(ModelForm):
+    class Meta:
+        model = TargetCollection
+        exclude = ['name', 'project', 'description', 'loci']
+
+    n_targets = forms.IntegerField(min_value=1, label=mark_safe("<b>Number of targets to add</b>"), initial=1)
+    metadata = forms.ModelChoiceField(
+        label=mark_safe("""
+                        <b>Differentiate genomes by metadata category </b>
+                        <a href="#" data-toggle="tooltip"
+                        title='Targets are selected that best differentiate genomes by selected feature. Genomes with missing metadata are not included in the calculation.'>
+                        <span data-feather="info"
+                        style="display: inline-block;"></span></a>"""),
+        queryset=MetadataCategory.objects.filter(active=True), widget=forms.RadioSelect, required=False)
+    include_existing = forms.BooleanField(
+        label=mark_safe("""
+                        <b>Include existing targets in calculation </b>
+                        <a href="#" data-toggle="tooltip"
+                        title='New targets will be calculated based on resolution with any existing targets. Ignoring existing targets will start with no resolution but will not add any targets that are currently in the collection. The later option is good for building in redundancy.'>
+                        <span data-feather="info"
+                        style="display: inline-block;"></span></a>"""),
+                initial=True, required=False)
+    randomize = forms.BooleanField(
+        label=mark_safe("""
+                        <b>Randomize results </b>
+                        <a href="#" data-toggle="tooltip"
+                        title='In the case of a tie, a target will be picked at random instead of deterministically.'>
+                        <span data-feather="info"
+                        style="display: inline-block;"></span></a>"""),
+
+                initial=False, required=False)
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Get the primary key from the instance (if available)
+        project_pk = kwargs.get('pk', None)
+        if project_pk:
+            # Filter categories based on the primary key
+            self.fields['metadata'].queryset = MetadataCategory.objects.filter(
+                active=True, project=project_pk)
+        else:
+            # If no instance is provided, show all categories
+            self.fields['metadata'].queryset = MetadataCategory.objects.filter(
+                active=True)
+    

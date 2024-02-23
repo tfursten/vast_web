@@ -31,6 +31,17 @@ urlpatterns = [
     path("organism/<str:pk>/detail/", views.OrganismDetailView.as_view(), name="organism_detail"),
     path("organisms/", views.OrganismListView.as_view(), name="organism_list"),
     path("organism-data/", views.get_organism_json, name="get_organism_json"),
+    path("projects/<str:pk>/add-target-collection/", views.TargetCollectionFormView.as_view(), name="target_collection_create"),
+    path("projects/<str:pk>/target-collection/<str:tc>/detail/", views.TargetCollectionDetailView.as_view(), name="target_collection_detail"),
+    path("projects/<str:pk>/target-collection/<str:tc>/update/", views.TargetCollectionUpdateView.as_view(), name="target_collection_update"),
+    path("projects/<str:pk>/target-collection/", views.TargetCollectionListView.as_view(), name="target_collection_list"),
+    path("projects/<str:pk>/target-collection/<str:tc>/remove", views.TargetCollectionDeleteView.as_view(), name="target_collection_delete"),
+    path("projects/<str:pk>/target-collection/<str:tc>/targets/", views.TargetCollectionLocusListView.as_view(), name="target_collection_targets_list"),
+    path("projects/<str:pk>/target-collection/<str:tc>/targets/edit-targets/", views.select_targets_manual, name="target_collection_add_targets_man"),
+    path("projects/<str:pk>/target-collection/<str:tc>/targets/add-targets-optimize/", views.TargetCollectionAddTargets.as_view(), name="target_collection_add_targets_opt"),
+    path("projects/<str:pk>/target-collection/<str:tc>/targets/<int:selected>/", views.get_targets_json, name="get_targets_selected_json"),
+    path("projects/<str:pk>/target-collection/<str:tc>/targets/all/", views.get_targets_json, name="get_targets_json"),
+
 
     
 

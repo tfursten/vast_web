@@ -1,0 +1,139 @@
+{% extends "targets/base.html" %}
+{% load static %}
+{% block head %}
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.11.3/af-2.3.7/b-2.0.1/b-colvis-2.0.1/b-html5-2.0.1/b-print-2.0.1/cr-1.5.4/date-1.1.1/fc-4.0.0/fh-3.2.0/kt-2.6.4/r-2.2.9/rr-1.2.8/sb-1.2.2/sl-1.3.3/datatables.min.css"/>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/rowreorder/1.2.8/css/rowReorder.dataTables.min.css"/>
+<link rel="stylesheet" type="text/css" source="{% static 'targets/data-tables/css/editor.dataTables.min.css' %}"/>
+<link rel="stylesheet" type="text/css" source="{% static 'targets/data-tables/css/editor.bootstrap5.min.css' %}"/>
+
+{% endblock head %}
+
+{% block content %}
+<form id="loci-form" method="POST">
+{% csrf_token %}
+<h1 class="border-bottom mt-2 mb-2">{{ targetcollection.name }}</h1>
+<h3>Select targets</h3>
+<div class="d-grid gap-2 d-md-block mt-2 mb-2">
+
+    </div>
+    <table id="loci_table" class="display table table-hover"> 
+        
+    </table>
+
+    <div class="d-grid gap-2 d-md-block mt-2">
+        <button class="btn btn-success" type="submit">Continue</button>
+       <a class="btn btn-outline-danger mr-5" href="{% url 'targets:target_collection_detail' pk tc %}" role="button">Cancel</a>
+   </div>
+
+{% endblock content %}
+
+{% block js %}
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.11.3/af-2.3.7/b-2.0.1/b-colvis-2.0.1/b-html5-2.0.1/b-print-2.0.1/cr-1.5.4/date-1.1.1/fc-4.0.0/fh-3.2.0/kt-2.6.4/r-2.2.9/rr-1.2.8/sb-1.2.2/sl-1.3.3/datatables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/rowgroup/1.1.3/js/dataTables.rowGroup.min.js"></script>
+<script type="text/javascript" src="{% static 'targets/data-tables/js/dataTables.editor.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'targets/data-tables/js/editor.bootstrap5.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'targets/data-tables/js/editor.dataTables.min.js' %}"></script>
+
+<script>
+
+ 
+ $(document).ready(function() {
+    let table = $('#loci_table').DataTable({
+        rowReorder: false,
+        fixedHeader: true,
+        stateSave: true,
+        rowId: function(a) {
+            return a.id;
+        },
+        ajax: {
+            url:"{% url 'targets:get_targets_json' targetcollection.project.id targetcollection.id %}",
+            csrfmiddlewaretoken: '{{ csrf_token }}',
+            dataSrc:"data"
+            },
+        order: [],
+        aLengthMenu: [
+                [25, 50, 100, 200, -1],
+                [25, 50, 100, 200, "All"]
+                ],
+        iDisplayLength: 25,
+        dom: 'B<"clear">lfrtip',
+        columns: [
+            { 
+                data: "name",
+                title: "Locus"
+            },
+            { 
+                data: "alleles",
+                title: "No. Unique Alleles"
+            },
+            ],
+
+        select: {
+            style: 'multi+shift'  
+        },
+        initComplete: function(settings, json) {
+            // Iterate over rows and select based on row data
+            table.rows().every(function() {
+                var data = this.data(); // Get data of the current row
+                console.log(data)
+                // Check your condition for selecting rows based on row data
+                if (data['active']) { // Replace 'YourCondition' with your actual condition
+                    this.select(); // Select the row
+                }
+            });},
+
+        buttons: {
+            name: 'primary',
+            buttons: [
+            'selectAll',
+            'selectNone',
+            {
+            extend: 'copy',
+            title: 'Loci List'
+            },
+            {
+            extend: 'csv',
+            title: 'Loci List'
+            },
+            {
+            extend: 'excel',
+            title: 'Loci List'
+            },
+        ]
+            }
+    })
+    table.rows({ page: 'all'}).select();
+        // Handle form submission event
+
+    $('#loci-form').on('submit', function(e){
+      let form = this;
+
+      let rows = table.rows( {selected: true} ).data().toArray();
+      console.log(rows)
+        // Iterate over all selected rows
+      $.each(rows, function(idx, val){
+         // Create a hidden element
+         $(form).append(
+        $('<input>')
+            .attr('type', 'hidden')
+            .attr('name', 'id')
+            .val(val.id)
+
+      );
+
+
+        });
+    });
+    })
+
+
+   
+   
+
+
+</script>
+{% endblock js %}

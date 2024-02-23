@@ -1,0 +1,27 @@
+{% extends "targets/base.html" %}
+{% block content %}
+<div class="card">
+    <h1 class="card-header">Target Collection: {{ targetcollection.name }}</h1>
+
+    <ul class="list-group list-group-flush">
+      {% if targetcollection.count_loci %}
+      <li class="list-group-item"><Strong>Targets:</Strong> {{ targetcollection.count_loci }}</li>
+      {% else%}
+      <li class="list-group-item"><Strong>Targets:</Strong> None</li>
+      {% endif %}
+      <li class="list-group-item"><Strong>Description:</Strong> {{ targetcollection.description }}</li>
+      <li class="list-group-item"><Strong>Created:</Strong> {{ targetcollection.created_on }}</li>
+    </ul>
+</div>
+<div class="d-grid gap-0 d-md-block mt-2">
+    <a class="btn btn-primary btn mb-2" href="{% url 'targets:target_collection_targets_list' targetcollection.project.id targetcollection.id %}" role="button">View Targets <span data-feather="list"></span></a>
+    <a class="btn btn-primary btn mb-2" href="{% url 'targets:target_collection_add_targets_man' targetcollection.project.id targetcollection.id %}" role="button">Edit Targets <span data-feather="plus"></span></a>
+    <a class="btn btn-primary btn mb-2" href="{% url 'targets:target_collection_update' targetcollection.project.id targetcollection.id %}" role="button">Edit <span data-feather="edit"></span></a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:target_collection_create' targetcollection.project.id %}" role="button">Add New Target Collection <span data-feather="plus"></span></a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:project_list' %}" role="button">Projects <span data-feather="corner-up-left"></span></a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:target_collection_list' targetcollection.project.id %}" role="button">Target Collections <span data-feather="corner-up-left"></span></a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:index' %}" role="button">Home <span data-feather="corner-up-left"></span></a>
+    <a class="btn btn-outline-danger btn mb-2" href="{% url 'targets:target_collection_delete' targetcollection.project.id targetcollection.id %}" role="button">Delete <span data-feather="trash"></span></a>
+</div>
+
+{% endblock content %}
