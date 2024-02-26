@@ -440,7 +440,7 @@ def load_project_data(request, pk):
             imputed_data = impute_missing_alleles(project.get_allele_table())
             print(imputed_data)
             # Convert the DataFrame to CSV format as a string
-            csv_content = imputed_data.to_csv(index=False)
+            csv_content = imputed_data.to_csv(index=False, sep="\t")
 
             # Create a ContentFile from the CSV content
             content_file = ContentFile(csv_content)
@@ -482,6 +482,8 @@ def data_delete_view(request, pk):
         project.deactivate_all_genomes()
         project.deactivate_all_loci()
         project.deactivate_all_metadata_categories()
+        # Delete all targetsets associated with the data
+        TargetCollection.objects.filter(project=project).delete()
 
         # Remove the existing file (if any)
         if project.data:
@@ -508,7 +510,14 @@ class TargetCollectionFormView(CreateView):
     success_message = "Target collection was successfully added: %(name)s"
 
     def get_success_url(self):
-        return reverse('targets:target_collection_detail', args=(self.kwargs.get('pk'), self.object.id,))
+        print(self.kwargs.get('pk'), self.kwargs.get('tc'))
+        print(self.kwargs)
+        print(self.object.id)
+        pk1 = self.object.pk
+        print(pk1)
+        obj = TargetCollection.objects.get(id=self.object.pk)
+        print(obj)
+        return reverse('targets:target_collection_detail', args=(self.kwargs.get('pk'), self.object.id))
     
     def get_initial(self):
         initial = super().get_initial()
@@ -518,6 +527,7 @@ class TargetCollectionFormView(CreateView):
 
 class TargetCollectionDetailView(DetailView):
     model = TargetCollection
+    pk_url_kwarg = 'tc'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -531,6 +541,8 @@ class TargetCollectionUpdateView(SuccessMessageMixin, UpdateView):
     template_name_suffix = '_update'
     form_class = TargetCollectionForm
     success_message = "Target collection was successfully updated:  %(name)s"
+    pk_url_kwarg = 'tc'
+
     
     def get_success_url(self):
         return reverse('targets:target_collection_detail', args=(self.kwargs.get('pk'), self.object.id,))
@@ -569,6 +581,8 @@ class TargetCollectionListView(ListView):
 
 class TargetCollectionDeleteView(DeleteView):
     model = TargetCollection
+    pk_url_kwarg = 'tc'
+
 
     def get_success_url(self):
         return reverse('targets:target_collection_list', args=(self.kwargs.get('pk'), ))
@@ -589,6 +603,8 @@ class TargetCollectionDeleteView(DeleteView):
 class TargetCollectionLocusListView(DetailView):
     template_name = "targets/targets_list.html"
     model = TargetCollection
+    pk_url_kwarg = 'tc'
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -651,16 +667,54 @@ class TargetCollectionAddTargets(SuccessMessageMixin, UpdateView):
     model = TargetCollection
     template_name_suffix = '_add_targets'
     form_class = AddTargets
-    success_message = "Targets were successfully added:  %(name)s"
+    success_message = "Targets were successfully added"
+    pk_url_kwarg = 'tc'
+
     
     def get_success_url(self):
-        return reverse('targets:target_collection_detail', args=(self.object.id,))
+
+        return reverse('targets:target_collection_detail', args=(self.kwargs.get('pk'), self.object.id,))
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         collection = TargetCollection.objects.get(id=self.kwargs.get('tc'))
         context['targetcollection'] = collection
         return context
+    
+    def form_valid(self, form):
+        # Your custom logic here
+        # For example, you can add a custom message or perform additional actions
+        
+        # Call the parent class's form_valid method to save the form and redirect
+        response = super().form_valid(form)
+        project = Project.objects.get(id=self.kwargs.get('pk'))
+        target_collection = TargetCollection.objects.get(id=self.kwargs.get('tc'))
+        alleles_df = project.get_allele_table()
+        imputed_df = project.get_imputed_data()
+        selected_loci = target_collection.loci.all()
+        alleles_df = format_data_for_optimization(
+            alleles_df, imputed_df)
+            
+        loci_options = alleles_df.columns.difference(selected_loci.values_list('name', flat=True))
+        loci_options_df = alleles_df[list(loci_options)]   
+
+        randomize = form.cleaned_data['randomize']
+        include_existing = form.cleaned_data['include_existing']
+        metadata_cat = form.cleaned_data['metadata']
+        n_targets = form.cleaned_data['n_targets']
+        meta_df = project.get_metadata_table()[metadata_cat.name] if metadata_cat else None
+
+        if include_existing:
+            # Get starting resolution from exsiting targets
+            starting_resolution = get_resolution(
+                alleles_df[alleles_df.columns.intersection(
+                    selected_loci.values_list('name', flat=True))])
+        else:
+            starting_resolution = get_resolution(get_starting_resolution(alleles_df.index))
+        add_targets = optimization_loop(loci_options_df, starting_resolution, n_targets, randomize, meta_df)
+        add_target_inst = Locus.objects.filter(project=project, name__in=add_targets)
+        target_collection.loci.add(*add_target_inst)
+        return response
     
 
 

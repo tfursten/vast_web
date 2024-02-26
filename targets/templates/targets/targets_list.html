@@ -8,7 +8,7 @@
 <h1 class="border-bottom">{{ targetcollection.name }}</h1>
 <h3>Selected targets for collection</h3>
     <div class="d-grid gap-2 d-md-block mt-2 mb-2">
-        <a class="btn btn-success btn" href="#" role="button">Add Targets <span data-feather="plus" style="display: inline-block;"></span></a>
+        <a class="btn btn-success btn" href="{% url 'targets:target_collection_add_targets_opt' targetcollection.project.id targetcollection.id %}" role="button">Add Targets <span data-feather="plus" style="display: inline-block;"></span></a>
         <a class="btn btn-primary btn" href="{% url 'targets:target_collection_add_targets_man' targetcollection.project.id targetcollection.id %}">Edit Targets <span data-feather="edit" style="display: inline-block;"></span></a>
         <a class="btn btn-outline-primary btn" href="{% url 'targets:target_collection_detail' targetcollection.project.id targetcollection.id %}" role="button">Target Collection <span data-feather="corner-up-left"></span></a>
         <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button">Home <span data-feather="corner-up-left"></span></a>

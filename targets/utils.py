@@ -3,11 +3,10 @@ import pandas as pd
 import numpy as np
 from scipy.spatial.distance import hamming
 
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.colors import hex_to_rgb, label_rgb
 
-
-
-from scipy.spatial.distance import hamming
-import numpy as np
 
 def replace_missing_with_unique(arr1, arr2, val):
     """
@@ -100,3 +99,148 @@ def impute_missing_alleles(allele_table):
                     allele_table[locus], dist.loc[genome])])
                 
     return pd.DataFrame(imput, columns=['Genome', 'Locus', 'Allele'])
+
+
+
+def add_imputed_vals_to_table(alleles_df, imputed_df):
+    """
+    Add imputed values to alleles table
+    """
+    for (gen, loc), val in imputed_df.iterrows():
+        alleles_df.loc[gen, loc] = val[0]
+    return alleles_df
+
+
+def alleles_to_numerical(alleles_df):
+    """
+    Convert alleles to numerical values
+    """
+    for column in alleles_df.columns:
+        alleles_df[column] = alleles_df[column].astype('category').cat.codes
+    return alleles_df
+
+
+def format_data_for_optimization(alleles_df, imputed_df):
+    """
+    Format allele table by adding back in imputed values, 
+    and converting alleles to numerical values.
+    """
+    return alleles_to_numerical(
+        add_imputed_vals_to_table(alleles_df, imputed_df))
+
+
+def get_starting_resolution(genomes):
+    return pd.DataFrame(np.zeros(len(genomes)), index=genomes, columns=['Start'])
+
+
+def get_resolution(alleles_df):
+    """
+    Given a matrix of alleles for different genomes, return an 
+    array that clusters genomes with the same genotype
+    for the provided SNPs.
+    Given: 
+            [LOCI]
+    [GENOMES]  0  0  0 
+               1  0  1  
+               1  1  2
+               1  0  1
+    Return:
+    [0, 1, 2, 1]
+    """
+    return np.unique(
+        alleles_df.values.astype('U'), axis=0, return_inverse=True)[-1]
+    
+
+def calculate_scores(opt_patterns):
+    scores = []
+    for row in opt_patterns:
+        _, counts = np.unique(row, return_counts=True)
+        scores.append(sum([c**2 - c for c in counts]))
+    return np.array(scores)
+
+
+def calculate_gini(opt_patterns, metadata):
+
+    meta_index = np.where(metadata != "")[0]
+    meta_values = np.unique(metadata.iloc[meta_index], return_inverse=True)[1]
+    scores = []
+    for i, row in enumerate(opt_patterns):
+        sizes = []
+        gini_impurity = []
+        row = row[meta_index]
+        for group in np.unique(row):
+            group = np.where(row==group)[0]
+            group_sz = len(group)
+            sizes.append(group_sz)
+            gini_impurity.append(
+                1 - sum([(n/group_sz)**2 for n in
+                         np.unique(meta_values[group],
+                                   return_counts=True)[1]]))        
+        sizes = [s/len(row) for s in sizes]
+        scores.append(sum([g*s for g, s in zip(gini_impurity, sizes)]))
+    return np.array(scores)
+    
+
+def optimization_loop(
+    patterns, starting_pattern, n_targets, randomize, metadata=None):
+    """
+    Run optimization loop and return a list of chosen targets
+    """
+    # Add constant value to starting pattern to easily add to pattern matrix
+    # Constant needs to be order of magnitude higher than any value in pattern matrix
+    const = 100 ** len(str(patterns.shape[0]))
+    result_pattern = starting_pattern
+    targets = []
+    target_names = []
+    iterations = min(n_targets, patterns.shape[1]) # reduce iterations to remaining targets if less than n_targets
+    patterns_arr = patterns.values.T
+    for i in range(iterations):
+        # Add const to current pattern
+        cur_pattern = np.multiply(result_pattern, const)
+        print(cur_pattern)
+        # Add current pattern to all available patterns
+        opt_pattern = np.add(patterns_arr, cur_pattern)
+        print(opt_pattern)
+        
+        # Calculate entropy score for each pattern combined with current pattern
+        # Use gini to calculate scores based on metadata categories otherwise use diversity
+        if metadata is None:
+            scores = calculate_scores(opt_pattern)
+        else:
+            scores = calculate_gini(opt_pattern, metadata)
+        # Find minimum score, remove any targets that have already been selected in prev. iters.
+        min_scores = np.setdiff1d(np.where(scores == scores.min())[0], targets)
+        # Find index of pattern with min score
+        # If randomize, return a random min score else pick first
+        min_score_target = np.random.choice(min_scores) if randomize else min_scores[0]
+        targets.append(min_score_target) # append index of best score
+        target_names.append(patterns.columns.values[min_score_target])
+        # update result pattern for next iteration
+        result_pattern = np.unique(opt_pattern[min_score_target], return_inverse=True)[-1]
+        
+    return target_names
+
+
+def draw_parallel_categories(resolution, metadata):
+    targets = list(resolution.columns.values)
+
+    last_group = {}
+    for g, d in resolution.groupby(targets[-1]):
+        last_group[g] = "<br>".join(d.index)
+
+    resolution[targets[-1]] = resolution[targets[-1]].apply(lambda x: last_group[x])
+    resolution['Categories'] = [metadata['values'].loc[i] for i in resolution.index]
+    resolution = resolution.sort_values( ['Categories'] + targets[::-1])
+
+    width = len(targets) * 150
+    height = resolution.shape[0] * 35
+    fig = px.parallel_categories(resolution, dimensions=targets, color="Categories", 
+                    color_continuous_scale=px.colors.sequential.Plasma,
+                    width=width, height=height
+                    )
+    # Make margins fit labels
+    max_label_len = max([len(i) for i in resolution.index])
+
+    fig.update_layout(coloraxis_showscale=False, margin=dict(l=20, r=max_label_len * 6, t=20, b=20))
+    html = fig.to_html()
+    return html

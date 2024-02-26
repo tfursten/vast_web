@@ -2,6 +2,7 @@ from django.db import models
 import requests
 import json
 import pandas as pd
+from .utils import get_resolution, format_data_for_optimization
 
 class Organism(models.Model):
     """
@@ -212,7 +213,12 @@ class Project(models.Model):
         df = pd.read_excel(self.data, index_col=0, na_values='', keep_default_na=False, dtype=str)
         return df.loc[active_genomes, active_metadata].fillna('')
     
-
+    def get_imputed_data(self):
+        """
+        Return dateframe of imputed values. The multindex is a combination
+        of the genome id and the locus id and the value is the imputed allele.
+        """
+        return pd.read_csv(self.imputed_data, index_col=[0, 1], sep="\t")
 
 class MetadataCategory(models.Model):
     """
@@ -305,11 +311,10 @@ class Genome(models.Model):
         String representation of the genome.
         """
         return f"{self.name}"
-    
+
     class Meta:
         ordering = ("name",)
         unique_together = ('project', 'name')
-    
 
 class TargetCollection(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -322,10 +327,29 @@ class TargetCollection(models.Model):
     @property
     def count_loci(self):
         return self.loci.count()
-    
-    def get_resolution(self):
-        # TODO: calculate resolution of current loci given organism genotypes in project
-        pass
+   
+    def get_resolution_table(self):
+        project = self.project
+        alleles_df = project.get_allele_table()
+        imputed_df = project.get_imputed_data()
+        selected_loci = self.loci.values_list('name', flat=True)
+        alleles_df = format_data_for_optimization(
+            alleles_df, imputed_df)[selected_loci]
+        res = []
+        for i in range(alleles_df.shape[1]):
+            print(i)
+            print(alleles_df.iloc[:, range(0, i+1)])
+            res.append(get_resolution(alleles_df.iloc[:, range(0, i+1)]))
+        return pd.DataFrame(res, index=alleles_df.columns, columns=alleles_df.index)
+
+
+    def get_targets_table(self):
+        project = self.project
+        active_genomes = list(project.get_active_genomes().values_list('name', flat=True))
+        loci = list(self.loci.all().values_list('name', flat=True))
+        df = pd.read_excel(project.data, index_col=0, na_values='', keep_default_na=False, dtype=str)
+        return df.loc[active_genomes, loci].fillna('')
+
 
     class Meta:
         ordering = ("-created_on",)
