@@ -99,16 +99,32 @@
               <a
                 class="nav-link active"
                 aria-current="page"
-                href="{% url 'targets:project_create' %}"
-                >Start</a
+                href="{% url 'targets:project_list' %}"
+                >Projects</a
               >
             </li>
             <li class="nav-item">
               <a
                 class="nav-link active"
                 aria-current="page"
-                href="{% url 'targets:project_list' %}"
-                >Projects</a
+                href="{% url 'targets:target_collection_list' %}"
+                >Targets</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link active"
+                aria-current="page"
+                href="#"
+                >Primers</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link active"
+                aria-current="page"
+                href="#"
+                >Analysis</a
               >
             </li>
             <li class="nav-item">
@@ -119,7 +135,52 @@
       </div>
     </nav>
 
-    <main class="container mt-4">
+    <div class="container-fluid">
+      <div class="row">
+        <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse mt-5">
+        
+          <div class="sidebar-sticky pt-3">
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link active" href="{% url 'targets:index' %}">
+                  <span data-feather="home"></span>
+                  Home
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'targets:project_list' %}">
+                  <span data-feather="archive"></span>
+                  Projects
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'targets:target_collection_list' %}">
+                  <span data-feather="target"></span>
+                  Target Collections
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#">
+                  <span data-feather="align-center"></span>
+                  Primers
+                </a>
+              </li>  
+              <li class="nav-item">
+                <a class="nav-link" href="#">
+                  <span data-feather="pie-chart"></span>
+                  Analysis
+                </a>
+              </li>
+    
+            </ul>
+    
+          </div>
+        </nav>
+
+
+    <main role="main" class="col-md-9 ml-sm-auto col-lg-10 offset-md-3 offset-lg-2 px-md-4 mt-4 mb-4 pb-4">
+
+  
       {% if messages %} {% for message in messages %}
       <div class="alert alert-{{ message.tags }}">{{ message }}</div>
       {% endfor %} {% endif %} {% block content %} {% endblock content %}
@@ -172,7 +233,7 @@
 
     {% block js %}{% endblock js %}
     <script src="{% static 'targets/js/bootstrap.bundle.min.js' %}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.29.0/dist/feather.min.js"></script>
     <script type="module">
       /* globals Chart:false, feather:false */
 

@@ -10,6 +10,20 @@
     <p class="lead">View existing projects</p>
     <a class="btn btn-lg btn-primary" href="{% url 'targets:project_list' %}" role="button">View &raquo;</a>
 </div>
-
+<div class="bg-light p-3 mt-4 rounded">
+    <h1>Target Collections</h1>
+    <p class="lead">View existing target collections</p>
+    <a class="btn btn-lg btn-primary" href="{% url 'targets:target_collection_list' %}" role="button">View &raquo;</a>
+</div>
+<div class="bg-light p-3 mt-4 rounded">
+    <h1>Design Primers</h1>
+    <p class="lead">Optimize primers for a target collection</p>
+    <a class="btn btn-lg btn-primary" href="#" role="button">Start &raquo;</a>
+</div>
+<div class="bg-light p-3 mt-4 rounded">
+    <h1>Analysis</h1>
+    <p class="lead">Analyze amplicon sequencing results</p>
+    <a class="btn btn-lg btn-primary" href="#" role="button">Start &raquo;</a>
+</div>
 
 {% endblock content %}

@@ -11,7 +11,7 @@
 {% block content %}
 <form id="loci-form" method="POST">
 {% csrf_token %}
-<h1 class="border-bottom mt-2 mb-2">{{ targetcollection.name }}</h1>
+<h1 class="border-bottom mt-2 mb-2">{{ targetcollection.project.name}} / {{ targetcollection.name }}</h1>
 <h3>Select targets</h3>
 <div class="d-grid gap-2 d-md-block mt-2 mb-2">
 
@@ -22,7 +22,7 @@
 
     <div class="d-grid gap-2 d-md-block mt-2">
         <button class="btn btn-success" type="submit">Continue</button>
-       <a class="btn btn-outline-danger mr-5" href="{% url 'targets:target_collection_detail' pk tc %}" role="button">Cancel</a>
+       <a class="btn btn-outline-danger mr-5" href="{% url 'targets:target_collection_detail' targetcollection.id %}" role="button">Cancel</a>
    </div>
 
 {% endblock content %}
@@ -50,7 +50,7 @@
             return a.id;
         },
         ajax: {
-            url:"{% url 'targets:get_targets_json' targetcollection.project.id targetcollection.id %}",
+            url:"{% url 'targets:get_targets_json' targetcollection.id %}",
             csrfmiddlewaretoken: '{{ csrf_token }}',
             dataSrc:"data"
             },

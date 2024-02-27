@@ -19,3 +19,197 @@ body {
 .form-group {
   margin-bottom: 25px; /* Adjust the value to increase or decrease spacing */
 }
+
+
+.rm {
+  margin-right: 10px; /* Adjust the value as needed */
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100; /* Behind the navbar */
+  padding: 48px 0 0; /* Height of navbar */
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+@media (max-width: 767.98px) {
+  .sidebar {
+    top: 5rem;
+  }
+}
+
+.sidebar-sticky {
+  position: relative;
+  top: 0;
+  height: calc(100vh - 48px);
+  padding-top: 1rem;
+  overflow-x: hidden;
+  overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
+}
+
+@supports ((position: -webkit-sticky) or (position: sticky)) {
+  .sidebar-sticky {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+.sidebar .nav-link {
+  font-weight: 500;
+  color: #333;
+}
+
+.sidebar .nav-link .feather {
+  margin-right: 4px;
+  color: #999;
+}
+
+.sidebar .nav-link.active {
+  color: #007bff;
+}
+
+.sidebar .nav-link:hover .feather,
+.sidebar .nav-link.active .feather {
+  color: inherit;
+}
+
+.sidebar-heading {
+  font-size: .75rem;
+  text-transform: uppercase;
+}
+
+/*
+ * Navbar
+ */
+
+.navbar-brand {
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+  font-size: 1rem;
+  background-color: rgba(0, 0, 0, .25);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, .25);
+}
+
+.navbar .navbar-toggler {
+  top: .25rem;
+  right: 1rem;
+}
+
+.navbar .form-control {
+  padding: .75rem 1rem;
+  border-width: 0;
+  border-radius: 0;
+}
+
+.form-control-dark {
+  color: #fff;
+  background-color: rgba(255, 255, 255, .1);
+  border-color: rgba(255, 255, 255, .1);
+}
+
+.form-control-dark:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .25);
+}
+
+
+
+.icon-lg{
+  fill: #333;
+  height: 50px;
+  width: 50px;
+  margin: auto;
+}
+
+
+
+.round-icon-container {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  grid-auto-rows: 200px;
+  grid-gap: 1em;
+}
+
+
+@media (min-width: 400px) {
+  .round-icon-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  }
+
+@media (min-width: 768px) {
+.round-icon-container {
+  grid-template-columns: repeat(3, 1fr);
+}
+}
+
+
+
+.round-icon-container-circle {
+  display: flex;
+  flex: 1;
+  height: 150px;
+  width: 150px;
+  opacity: 0.75;
+  border-radius: 50%;
+  background-color:#eee;
+}
+
+.round-icon-container-circle:hover {
+  opacity: 1;
+}
+
+
+.circle-link {
+  font-weight: 500;
+  color: #555;
+  text-decoration: none;
+}
+
+.circle-link:hover {
+  color: black;
+}
+
+.table-link {
+  font-weight: 500;
+  color:  #555;
+  text-decoration: none;
+}
+
+.table-link:hover {
+  color: black;
+}
+
+main {
+  overflow-x:scroll;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -100;
+}
+
+mark {
+  background-color: #ccc;
+  color: inherit;
+}
+
+/* remove space above single cell editor for datatables */
+
+.DTE_Inline_Field .col-form-label{
+  display: none;
+}
+
+select.form-select{
+  line-height: 1rem;
+  width: 100%;
+}
+
+.DTE_Field_Type_readonly {
+  display: none;
+}

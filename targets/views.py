@@ -468,10 +468,17 @@ def data_list_view(request, pk):
         table_id="datatable",
         classes=['display', 'table', 'table-hover'],
         justify="left", index=False)
+    metadata_idx = [i for i in range(1, metadata_table.shape[1] + 1)]
+    allele_idx = [i for i in range(metadata_table.shape[1] + 1, df.shape[1] + 1)]
 
     return render(
                 request, 'targets/data_table.html',
-                {'table': html, 'project': project}
+                {
+                    'table': html,
+                    'project': project,
+                    'meta_idx': metadata_idx,
+                    'allele_idx': allele_idx
+                }
                 )
 
 
@@ -510,82 +517,73 @@ class TargetCollectionFormView(CreateView):
     success_message = "Target collection was successfully added: %(name)s"
 
     def get_success_url(self):
-        print(self.kwargs.get('pk'), self.kwargs.get('tc'))
-        print(self.kwargs)
-        print(self.object.id)
-        pk1 = self.object.pk
-        print(pk1)
-        obj = TargetCollection.objects.get(id=self.object.pk)
-        print(obj)
-        return reverse('targets:target_collection_detail', args=(self.kwargs.get('pk'), self.object.id))
+        return reverse('targets:target_collection_detail', args=(self.object.id,))
     
     def get_initial(self):
         initial = super().get_initial()
+        print(self.kwargs.get('pk'))
         initial['project'] = self.kwargs.get('pk')
         return initial
 
 
 class TargetCollectionDetailView(DetailView):
     model = TargetCollection
-    pk_url_kwarg = 'tc'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        collection = TargetCollection.objects.get(id=self.kwargs.get('tc'))
-        context['targetcollection'] = collection
-        return context
-
+ 
 
 class TargetCollectionUpdateView(SuccessMessageMixin, UpdateView):
     model = TargetCollection
     template_name_suffix = '_update'
     form_class = TargetCollectionForm
     success_message = "Target collection was successfully updated:  %(name)s"
-    pk_url_kwarg = 'tc'
 
     
     def get_success_url(self):
-        return reverse('targets:target_collection_detail', args=(self.kwargs.get('pk'), self.object.id,))
+        return reverse('targets:target_collection_detail', args=(self.object.id,))
     
     def get_initial(self):
         initial = super().get_initial()
         # Retrieve the object being updated
         obj = self.get_object()
         # Populate the initial data with values from the object
-        initial['project'] = self.kwargs.get('pk')
+        initial['project'] = obj.project.id
         initial['name'] = obj.name
         initial['description'] = obj.description
         return initial
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        collection = TargetCollection.objects.get(id=self.kwargs.get('tc'))
-        context['targetcollection'] = collection
-        return context
+
 
 
 class TargetCollectionListView(ListView):
     template_name_suffix = "_list"
     model = TargetCollection
 
+    def get_queryset(self):
+        # Access kwargs using self.kwargs
+        project_pk = self.kwargs.get('pk', None)
+        print(project_pk)
+        # Filter by project if pk is passed
+        if project_pk:
+            collection = TargetCollection.objects.filter(project=project_pk)
+        else:
+            collection = TargetCollection.objects.all()
+        return collection
     
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        project = Project.objects.get(pk=self.kwargs.get('pk'))
-        # collection = TargetCollection.objects.filter(project=self.kwargs.get('pk'))
-        context['project'] = project
-        # context['targetcollection'] = collection
-        print(context)
+    def get_context_data(self):
+        """
+        Add context for add targetcollection button,
+        sets project pk as initial if in project based list view.
+        """
+        context = super().get_context_data(**self.kwargs)
+        if self.kwargs.get('pk', None):
+            context['pk'] = self.kwargs.get('pk', None)
         return context
+            
 
 
 class TargetCollectionDeleteView(DeleteView):
     model = TargetCollection
-    pk_url_kwarg = 'tc'
-
 
     def get_success_url(self):
-        return reverse('targets:target_collection_list', args=(self.kwargs.get('pk'), ))
+        return reverse('targets:target_collection_list')
     
     def post(self, request, *args, **kwargs):
         try:
@@ -593,36 +591,22 @@ class TargetCollectionDeleteView(DeleteView):
         except ProtectedError:
             return render(request, "targets/protected_error.html")
         
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        collection = TargetCollection.objects.get(id=self.kwargs.get('tc'))
-        context['targetcollection'] = collection
-        return context
-        
 
 class TargetCollectionLocusListView(DetailView):
     template_name = "targets/targets_list.html"
     model = TargetCollection
-    pk_url_kwarg = 'tc'
 
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        collection = TargetCollection.objects.get(id=self.kwargs.get('tc'))
-        context['targetcollection'] = collection
-        return context
     
 
-
-def get_targets_json(request, pk, tc, selected=False):
+def get_targets_json(request, pk, selected=False):
     """
     Return either all active loci for projects with 
     selected targets marked [selected=False] or
     the targets that have been selected for the 
     target collection [selected=True]
     """
-    project = Project.objects.get(id=pk)
-    target_col = TargetCollection.objects.get(id=tc)
+    target_col = TargetCollection.objects.get(id=pk)
+    project = target_col.project
     all_rows = []
     selected_targets = target_col.loci.all()
     for locus in selected_targets:
@@ -647,19 +631,18 @@ def get_targets_json(request, pk, tc, selected=False):
     return JsonResponse(data, safe=False)
 
 
-def select_targets_manual(request, pk, tc):
-    target_collection = TargetCollection.objects.get(id=tc)
+def select_targets_manual(request, pk):
+    target_col = TargetCollection.objects.get(pk=pk)
     if request.method == 'POST':
         loci_resp = map(int, request.POST.getlist('id'))
-        target_col = TargetCollection.objects.get(pk=tc)
+        target_col = TargetCollection.objects.get(pk=pk)
         target_col.loci.clear()
-        # Add the new list of authors to the book
         target_col.loci.add(*loci_resp)
-        return redirect('targets:target_collection_detail', pk=pk, tc=tc)
+        return redirect('targets:target_collection_detail', pk=pk)
 
     return render(
         request, "targets/select_targets.html",
-        {'pk': pk, 'tc': tc, 'targetcollection': target_collection})
+        {'targetcollection': target_col})
 
 
 
@@ -668,34 +651,23 @@ class TargetCollectionAddTargets(SuccessMessageMixin, UpdateView):
     template_name_suffix = '_add_targets'
     form_class = AddTargets
     success_message = "Targets were successfully added"
-    pk_url_kwarg = 'tc'
 
-    
     def get_success_url(self):
-
-        return reverse('targets:target_collection_detail', args=(self.kwargs.get('pk'), self.object.id,))
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        collection = TargetCollection.objects.get(id=self.kwargs.get('tc'))
-        context['targetcollection'] = collection
-        return context
+        return reverse('targets:target_collection_detail', args=(self.object.id,))
     
     def form_valid(self, form):
-        # Your custom logic here
-        # For example, you can add a custom message or perform additional actions
         
-        # Call the parent class's form_valid method to save the form and redirect
         response = super().form_valid(form)
-        project = Project.objects.get(id=self.kwargs.get('pk'))
-        target_collection = TargetCollection.objects.get(id=self.kwargs.get('tc'))
+        target_collection = TargetCollection.objects.get(id=self.kwargs.get('pk'))
+        project = target_collection.project
         alleles_df = project.get_allele_table()
         imputed_df = project.get_imputed_data()
         selected_loci = target_collection.loci.all()
         alleles_df = format_data_for_optimization(
             alleles_df, imputed_df)
             
-        loci_options = alleles_df.columns.difference(selected_loci.values_list('name', flat=True))
+        loci_options = alleles_df.columns.difference(
+            selected_loci.values_list('name', flat=True))
         loci_options_df = alleles_df[list(loci_options)]   
 
         randomize = form.cleaned_data['randomize']
@@ -720,16 +692,36 @@ class TargetCollectionAddTargets(SuccessMessageMixin, UpdateView):
 
 
 
-def select_targets_opt(request, pk):
-    pass
-    # if request.method == 'POST':
-    #     loci_resp = map(int, request.POST.getlist('id'))
-    #     project = Project.objects.get(pk=pk)
-    #     project.deactivate_all_loci()
-    #     activate = Locus.objects.filter(project=project, pk__in=loci_resp).update(active=True)
-    #     return redirect('targets:project_detail', pk=pk)
+def profile_list_view(request, pk):
+    target_col = TargetCollection.objects.get(id=pk)
+    target_table = target_col.get_targets_table()
+    project = target_col.project
+    metadata_table = project.get_metadata_table()
+    df = metadata_table.join(target_table)
+    df.index.name = "GenomeID"
+    html = df.reset_index().to_html(
+        table_id="datatable",
+        classes=['display', 'table', 'table-hover'],
+        justify="left", index=False)
+    
+    metadata_idx = [i for i in range(1, metadata_table.shape[1] + 1)]
+    allele_idx = [i for i in range(metadata_table.shape[1] + 1, df.shape[1] + 1)]
+    
 
-    # return render(request, "targets/select_loci.html", {'pk': pk})
+    return render(
+                request, 'targets/profile_table.html',
+                {
+                    'table': html,
+                    'targetcollection': target_col,
+                    'meta_idx': metadata_idx,
+                    'allele_idx': allele_idx
+                }
+                )
+                
+
+
+
+
 
 
 # def add_target_collection(request, pk):
