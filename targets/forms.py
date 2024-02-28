@@ -5,6 +5,7 @@ from .models import *
 from django.core.validators import FileExtensionValidator
 from django.forms.widgets import CheckboxSelectMultiple
 from django.utils.safestring import mark_safe
+import plotly.express as px
 
 
 
@@ -75,12 +76,40 @@ class AddTargets(ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Get the primary key from the instance (if available)
-        project_pk = kwargs.get('pk', None)
-        if project_pk:
+        instance = kwargs.get('instance')
+
+        if instance:
+            # Filter categories based on the primary key
+            print('inst', instance)
+            self.fields['metadata'].queryset = MetadataCategory.objects.filter(
+                active=True, project=instance.project)
+        else:
+            # If no instance is provided, show all categories
+            self.fields['metadata'].queryset = MetadataCategory.objects.filter(
+                active=True)
+    
+
+
+class ResolutionForm(ModelForm):
+    class Meta:
+        model = TargetCollection
+        exclude = ['name', 'project', 'description', 'loci']
+
+    metadata = forms.ModelChoiceField(
+        label="Color by metadata category",
+        queryset=MetadataCategory.objects.filter(active=True), required=False)
+    fontsize = forms.IntegerField(min_value=8, max_value=20, initial=12)
+    palette = forms.ChoiceField(choices=[(n, n.capitalize()) for n in px.colors.named_colorscales()], initial='plasma')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        instance = kwargs.get('instance')
+
+        if instance:
             # Filter categories based on the primary key
             self.fields['metadata'].queryset = MetadataCategory.objects.filter(
-                active=True, project=project_pk)
+                active=True, project=instance.project)
         else:
             # If no instance is provided, show all categories
             self.fields['metadata'].queryset = MetadataCategory.objects.filter(

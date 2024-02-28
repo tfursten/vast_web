@@ -44,6 +44,8 @@ urlpatterns = [
     path("target-collection/<str:pk>/targets/<int:selected>/", views.get_targets_json, name="get_targets_selected_json"),
     path("target-collection/<str:pk>/targets/all/", views.get_targets_json, name="get_targets_json"),
     path("target-collection/<str:pk>/targets/profile/", views.profile_list_view, name="profile_list"),
+    path("target-collection/<str:pk>/resolution/data/", views.get_resolution_figure_html, name="resolution_figure_html"),
+    path("target-collection/<str:pk>/resolution/", views.resolution_view, name="resolution_figure"),
 
 
     

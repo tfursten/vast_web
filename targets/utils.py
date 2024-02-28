@@ -79,7 +79,7 @@ def get_weighted_likelihood_allele(alleles, dists):
     dat['Inverse'] = (1 - dat['Dists'])**3
     dat = dat[dat['Alleles'] != '']
     counts = dat.groupby('Alleles')['Inverse'].sum().idxmax()
-    return counts
+    return str(counts)
 
 def impute_missing_alleles(allele_table):
     """
@@ -106,8 +106,13 @@ def add_imputed_vals_to_table(alleles_df, imputed_df):
     """
     Add imputed values to alleles table
     """
-    for (gen, loc), val in imputed_df.iterrows():
-        alleles_df.loc[gen, loc] = val[0]
+    for allele in alleles_df:
+        col = alleles_df[allele]
+        empty = col[col == ''].index
+        for genome in empty:
+            print(genome, allele)
+            alleles_df.loc[genome, allele] = str(
+                imputed_df.loc[(genome, allele)].Allele)
     return alleles_df
 
 
@@ -221,26 +226,69 @@ def optimization_loop(
     return target_names
 
 
-def draw_parallel_categories(resolution, metadata):
-    targets = list(resolution.columns.values)
 
-    last_group = {}
-    for g, d in resolution.groupby(targets[-1]):
-        last_group[g] = "<br>".join(d.index)
 
-    resolution[targets[-1]] = resolution[targets[-1]].apply(lambda x: last_group[x])
-    resolution['Categories'] = [metadata['values'].loc[i] for i in resolution.index]
-    resolution = resolution.sort_values( ['Categories'] + targets[::-1])
 
-    width = len(targets) * 150
-    height = resolution.shape[0] * 35
-    fig = px.parallel_categories(resolution, dimensions=targets, color="Categories", 
-                    color_continuous_scale=px.colors.sequential.Plasma,
-                    width=width, height=height
-                    )
-    # Make margins fit labels
-    max_label_len = max([len(i) for i in resolution.index])
+def draw_par_cats(resolution, metadata, alleles,
+                   metadata_cat=None, font_size=12, palette='inferno'):
+    alleles = alleles.astype(str)
+    resolution = resolution.astype(str)
+    resolution = resolution.T
+    alleles.index = alleles.index.astype(str)
+    resolution.index = resolution.index.astype(str)
+    metadata.index = metadata.index.astype(str)
+    # print(resolution)
+    # print(alleles)
+    # print(metadata)
+    # print(metadata_cat)
+    for genome in resolution.index:
+        for locus in resolution.columns:
+            resolution.loc[genome, locus] = f"{alleles.loc[genome, locus]}-{resolution.loc[genome, locus]}"
+    
+    print(resolution)
+    if metadata_cat:
+        metadata[f'{metadata_cat}_numerical'] = metadata[metadata_cat].astype('category').cat.codes
+        resolution = metadata[[metadata_cat, f'{metadata_cat}_numerical' ]].join(resolution)    
+        print("HERE", resolution)    
+        resolution = resolution.sort_values(list(resolution.columns.values))
+        color = resolution[f'{metadata_cat}_numerical']
+        resolution = resolution.drop(f'{metadata_cat}_numerical', axis=1)
+    else:
+        resolution['Genomes'] = np.arange(0, resolution.shape[0])
+        color = resolution['Genomes']
+        resolution = resolution.drop('Genomes', axis=1)
 
-    fig.update_layout(coloraxis_showscale=False, margin=dict(l=20, r=max_label_len * 6, t=20, b=20))
+    dims = []
+
+    for c in resolution:
+        dims.append(
+            go.parcats.Dimension(
+                values = resolution[c],
+                label = c
+            ))
+
+    dims.append(
+        go.parcats.Dimension(
+            values = resolution.index,
+            label = "Genomes",
+        )
+    )
+
+    fig = go.Figure(data = [go.Parcats(dimensions=dims,
+            line={'color': color, 'colorscale': palette},
+            bundlecolors=True,         
+            hoveron='category', hoverinfo='count',
+            labelfont={'size': font_size, 'family': 'Arial', 'color': 'black'},
+            tickfont={'size': font_size, 'family': 'Arial', 'color': 'black'},
+            arrangement='freeform')]) 
+
+    fig.update_layout(
+        height=max(800, (resolution.shape[0] * 10))
+    )
+#     fig.update_layout(
+#         margin=dict(l=200, r=200, t=50, b=20),
+#     )
     html = fig.to_html()
     return html
+
+

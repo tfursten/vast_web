@@ -2,7 +2,10 @@ from django.db import models
 import requests
 import json
 import pandas as pd
-from .utils import get_resolution, format_data_for_optimization
+from .utils import (
+    get_resolution,
+    format_data_for_optimization,
+    add_imputed_vals_to_table)
 
 class Organism(models.Model):
     """
@@ -201,7 +204,9 @@ class Project(models.Model):
         """
         active_genomes = list(self.get_active_genomes().values_list('name', flat=True))
         active_loci = list(self.get_active_loci().values_list('name', flat=True))
-        df = pd.read_excel(self.data, index_col=0, na_values='', keep_default_na=False, dtype=str)
+        df = pd.read_excel(
+            self.data.path, index_col=0, na_values='',
+            keep_default_na=False, dtype=str)
         return df.loc[active_genomes, active_loci].fillna('')
 
     def get_metadata_table(self):
@@ -210,7 +215,7 @@ class Project(models.Model):
         """
         active_genomes = list(self.get_active_genomes().values_list('name', flat=True))
         active_metadata = list(self.get_active_metadata().values_list('name', flat=True))
-        df = pd.read_excel(self.data, index_col=0, na_values='', keep_default_na=False, dtype=str)
+        df = pd.read_excel(self.data.path, index_col=0, na_values='', keep_default_na=False, dtype=str)
         return df.loc[active_genomes, active_metadata].fillna('')
     
     def get_imputed_data(self):
@@ -218,7 +223,7 @@ class Project(models.Model):
         Return dateframe of imputed values. The multindex is a combination
         of the genome id and the locus id and the value is the imputed allele.
         """
-        return pd.read_csv(self.imputed_data, index_col=[0, 1], sep="\t")
+        return pd.read_csv(self.imputed_data.path, index_col=[0, 1], sep="\t")
 
 class MetadataCategory(models.Model):
     """
@@ -329,26 +334,39 @@ class TargetCollection(models.Model):
         return self.loci.count()
    
     def get_resolution_table(self):
+        """
+        Returns a resolution table for each genome and each chosen target using
+        imputed data.
+        """
+        #t = TargetCollection.objects.get(id=24)
+        #t.get_resolution_table()
+
         project = self.project
-        alleles_df = project.get_allele_table()
-        imputed_df = project.get_imputed_data()
         selected_loci = self.loci.values_list('name', flat=True)
+        alleles_df = project.get_allele_table()[selected_loci]
+        imputed_df = project.get_imputed_data()
         alleles_df = format_data_for_optimization(
             alleles_df, imputed_df)[selected_loci]
         res = []
         for i in range(alleles_df.shape[1]):
-            print(i)
-            print(alleles_df.iloc[:, range(0, i+1)])
             res.append(get_resolution(alleles_df.iloc[:, range(0, i+1)]))
         return pd.DataFrame(res, index=alleles_df.columns, columns=alleles_df.index)
 
 
     def get_targets_table(self):
+        """
+        Table of active genomes and target loci using uploaded data table
+        """
         project = self.project
         active_genomes = list(project.get_active_genomes().values_list('name', flat=True))
         loci = list(self.loci.all().values_list('name', flat=True))
         df = pd.read_excel(project.data, index_col=0, na_values='', keep_default_na=False, dtype=str)
         return df.loc[active_genomes, loci].fillna('')
+    
+    def get_imputed_alleles(self):
+        return add_imputed_vals_to_table(
+                self.get_targets_table(),
+                self.project.get_imputed_data())
 
 
     class Meta:

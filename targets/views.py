@@ -719,6 +719,49 @@ def profile_list_view(request, pk):
                 )
                 
 
+def get_resolution_figure_html(request, pk):
+    """
+    Get HTML for parcats figure.
+    """
+    print("HTML", request.POST, pk)
+    target_col = TargetCollection.objects.get(id=pk)
+    alleles = target_col.get_imputed_alleles()
+    res = target_col.get_resolution_table()
+    meta = target_col.project.get_metadata_table()
+
+    mc = request.POST.get('metadata')
+    print("MC", mc)
+    if mc:
+        metacat = MetadataCategory.objects.get(id=mc).name
+    else:
+        metacat = None
+        
+    html = draw_par_cats(
+        res, meta, alleles, metacat,
+        font_size=int(request.POST.get('fontsize', 12)),
+        palette=request.POST.get('palette', 'plasma'))
+    return HttpResponse(html)
+
+
+def get_default_figure_html(pk):
+    target_col = TargetCollection.objects.get(id=pk)
+    alleles = target_col.get_imputed_alleles()
+    res = target_col.get_resolution_table()
+    meta = target_col.project.get_metadata_table()
+        
+    html = draw_par_cats(res, meta, alleles)
+    return html
+
+
+def resolution_view(request, pk):
+    target_col = TargetCollection.objects.get(id=pk)
+    form = ResolutionForm(instance=target_col)
+    default_html = get_default_figure_html(pk)
+    return render(
+        request, 'targets/resolution_figure.html',
+        {'form':form, 'pk': pk, 'targetcollection': target_col,
+        'default_html': default_html})
+
 
 
 

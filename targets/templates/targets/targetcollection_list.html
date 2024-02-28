@@ -43,7 +43,7 @@
                     <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:target_collection_targets_list' targetcollection.id %}"><span data-feather="list" class="rm"></span>{{ targetcollection.count_loci }}</a>
                     <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:target_collection_add_targets_opt' targetcollection.id %}"><span data-feather="plus" style="display: inline-block;"></span></a>
                     <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:target_collection_add_targets_man' targetcollection.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
-                    <a role="button" class="btn btn-primary btn-sm" href="#"><span data-feather="pie-chart" class="rm"></span>Resolution</a>
+                    <a role="button" class="btn btn-primary btn-sm" href="{% url 'targets:resolution_figure' targetcollection.id %}"><span data-feather="pie-chart" class="rm"></span>Resolution</a>
                     <a role="button" class="btn btn-primary btn-sm" href="{% url 'targets:profile_list' targetcollection.id %}"><span data-feather="table" class="rm"></span>Profile</a>
                     <a role="button" class="btn btn-primary btn-sm" href="#"><span data-feather="share-2" class="rm"></span>Tree</a>
 
