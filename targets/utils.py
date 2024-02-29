@@ -6,7 +6,8 @@ from scipy.spatial.distance import hamming
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.colors import hex_to_rgb, label_rgb
-
+from grapetree import grapetree
+from io import StringIO
 
 def replace_missing_with_unique(arr1, arr2, val):
     """
@@ -50,15 +51,17 @@ def get_distance_matrix(allele_table):
     n_genomes = allele_table.shape[0]
     dist = np.zeros((n_genomes, n_genomes))
     for i in range(n_genomes - 1):
-        for j in range(i + 1, n_genomes):        
+        for j in range(i + 1, n_genomes):
             genome1_alleles = allele_table.iloc[i]
             genome2_alleles = allele_table.iloc[j]
+
             categories = np.unique(
                 np.concatenate([genome1_alleles.values, genome2_alleles.values]))
             genome1_alleles_enc = np.searchsorted(categories, genome1_alleles)
             genome2_alleles_enc = np.searchsorted(categories, genome2_alleles)
             # to avoid genomes with missing data from being more similar to eachother
             # add unique values for each missing so they are treated as differences
+
             blank_idx = np.where(categories=='')[0]
             if len(blank_idx):
                 genome1_alleles_enc, genome2_alleles_enc = replace_missing_with_unique(
@@ -70,6 +73,28 @@ def get_distance_matrix(allele_table):
             dist[j][i] = d
 
     return pd.DataFrame(dist, index=allele_table.index, columns=allele_table.index)
+
+
+def get_grapetree_distance_matrix(alleles):
+    # fill in missing values using graptree format convert to string
+    file_buffer = StringIO()
+    alleles.replace("", "-").reset_index().to_csv(file_buffer, sep="\t", index=False)
+    file_str = file_buffer.getvalue()
+
+    print(file_str[:100])
+    dist = pd.read_csv(StringIO(grapetree.backend(
+        profile=file_str,
+        method="distance",
+        matrix_type="symmetric")),
+        sep='\s+', skiprows=1, header=None, index_col=0)
+    dist.columns = dist.index
+    print("DIST", dist.head())
+    print(dist.shape)
+    return dist
+    
+    
+    
+
         
 def get_weighted_likelihood_allele(alleles, dists):
     """
@@ -86,7 +111,10 @@ def impute_missing_alleles(allele_table):
     Impute missing alleles, returns a dataframe with rows 
     indicating [genome, locus, imputed allele]
     """
-    dist = get_distance_matrix(allele_table)
+    print(allele_table.head())
+    print("Getting Distance Matrix")
+    dist = get_grapetree_distance_matrix(allele_table)
+    print("Done Getting Matrix")
     imput = []
     for genome, row in allele_table.iterrows():
         # list loci with missing data for this genome
@@ -202,10 +230,8 @@ def optimization_loop(
     for i in range(iterations):
         # Add const to current pattern
         cur_pattern = np.multiply(result_pattern, const)
-        print(cur_pattern)
         # Add current pattern to all available patterns
         opt_pattern = np.add(patterns_arr, cur_pattern)
-        print(opt_pattern)
         
         # Calculate entropy score for each pattern combined with current pattern
         # Use gini to calculate scores based on metadata categories otherwise use diversity
@@ -245,11 +271,9 @@ def draw_par_cats(resolution, metadata, alleles,
         for locus in resolution.columns:
             resolution.loc[genome, locus] = f"{alleles.loc[genome, locus]}-{resolution.loc[genome, locus]}"
     
-    print(resolution)
     if metadata_cat:
         metadata[f'{metadata_cat}_numerical'] = metadata[metadata_cat].astype('category').cat.codes
         resolution = metadata[[metadata_cat, f'{metadata_cat}_numerical' ]].join(resolution)    
-        print("HERE", resolution)    
         resolution = resolution.sort_values(list(resolution.columns.values))
         color = resolution[f'{metadata_cat}_numerical']
         resolution = resolution.drop(f'{metadata_cat}_numerical', axis=1)
@@ -292,3 +316,10 @@ def draw_par_cats(resolution, metadata, alleles,
     return html
 
 
+def drop_nans(df, thresh_percent, axis=0):
+    
+    # Calculate the minimum number of non-NaN values required based on the threshold percentage
+    threshold_count = int(df.shape[(not bool(axis))] * thresh_percent)
+    # Drop rows with more than the specified threshold count of NaN values
+    res = df.dropna(thresh=threshold_count, axis=axis)
+    return res

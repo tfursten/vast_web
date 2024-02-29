@@ -172,7 +172,7 @@ class GenomeListView(ListView):
     template_name = "targets/genome_list.html"
     model = Genome
     def get_queryset(self, **kwargs):
-        new_context = Project.objects.get(pk=self.kwargs['pk']).get_active_genomes()
+        new_context = Project.objects.get(pk=self.kwargs['pk']).get_selected_genomes()
         return new_context
     
     def get_context_data(self, **kwargs):
@@ -182,10 +182,10 @@ class GenomeListView(ListView):
         return context
     
 
-def get_genomes_json(request, pk, active=None):
+def get_genomes_json(request, pk, selected=False):
     project = Project.objects.get(id=pk)
-    if active is None:
-        genomes = project.get_genomes()
+    if selected:
+        genomes = project.get_selected_genomes()
     else:
         genomes = project.get_active_genomes()
 
@@ -195,9 +195,10 @@ def get_genomes_json(request, pk, active=None):
         all_rows.append({
             'id': genome.id,
             'name': genome.name,
-            'alleles': genome.alleles,
-            'metadata': genome.metadata,
-            'active': genome.active
+            'alleles': genome.n_alleles,
+            'metadata': genome.n_metadata,
+            'active': genome.active,
+            'selected': genome.selected
         })
 
 
@@ -212,8 +213,9 @@ def select_genomes_list(request, pk):
     if request.method == 'POST':
         genome_resp = map(int, request.POST.getlist('id'))
         project = Project.objects.get(pk=pk)
-        project.deactivate_all_genomes()
-        activate = Genome.objects.filter(project=project, pk__in=genome_resp).update(active=True)
+        project.deselect_all_genomes()
+        Genome.objects.filter(
+            project=project, pk__in=genome_resp).update(selected=True)
         return redirect('targets:project_detail', pk=pk)
 
     return render(request, "targets/select_genomes.html", {'pk': pk})
@@ -226,7 +228,7 @@ class LocusListView(ListView):
     template_name = "targets/locus_list.html"
     model = Locus
     def get_queryset(self, **kwargs):
-        new_context = Project.objects.get(pk=self.kwargs['pk']).get_active_loci()
+        new_context = Project.objects.get(pk=self.kwargs['pk']).get_selected_loci()
         return new_context
     
     def get_context_data(self, **kwargs):
@@ -236,10 +238,10 @@ class LocusListView(ListView):
         return context
     
 
-def get_loci_json(request, pk, active=None):
+def get_loci_json(request, pk, selected=False):
     project = Project.objects.get(id=pk)
-    if active is None:
-        loci = project.get_loci()
+    if selected:
+        loci = project.get_selected_loci()
     else:
         loci = project.get_active_loci()
 
@@ -248,8 +250,9 @@ def get_loci_json(request, pk, active=None):
         all_rows.append({
             'id': locus.id,
             'name': locus.name,
-            'alleles': locus.alleles,
-            'active': locus.active
+            'alleles': locus.n_alleles,
+            'active': locus.active,
+            'selected': locus.selected
         })
 
     data = {'data': all_rows}
@@ -261,8 +264,8 @@ def select_loci_list(request, pk):
     if request.method == 'POST':
         loci_resp = map(int, request.POST.getlist('id'))
         project = Project.objects.get(pk=pk)
-        project.deactivate_all_loci()
-        activate = Locus.objects.filter(project=project, pk__in=loci_resp).update(active=True)
+        project.deselect_all_loci()
+        Locus.objects.filter(project=project, pk__in=loci_resp).update(selected=True)
         return redirect('targets:project_detail', pk=pk)
 
     return render(request, "targets/select_loci.html", {'pk': pk})
@@ -273,7 +276,7 @@ class MetadataCategoryListView(ListView):
     template_name = "targets/metadatacategory_list.html"
     model = MetadataCategory
     def get_queryset(self, **kwargs):
-        new_context = Project.objects.get(pk=self.kwargs['pk']).get_active_metadata()
+        new_context = Project.objects.get(pk=self.kwargs['pk']).get_selected_metadata()
         return new_context
     
     def get_context_data(self, **kwargs):
@@ -283,10 +286,10 @@ class MetadataCategoryListView(ListView):
         return context
     
 
-def get_metacat_json(request, pk, active=None):
+def get_metacat_json(request, pk, selected=False):
     project = Project.objects.get(id=pk)
-    if active is None:
-        meta = project.get_metadata()
+    if selected:
+        meta = project.get_selected_metadata()
     else:
         meta = project.get_active_metadata()
 
@@ -295,9 +298,10 @@ def get_metacat_json(request, pk, active=None):
         all_rows.append({
             'id': dat.id,
             'name': dat.name,
-            'values': dat.values,
-            'genomes': dat.genomes,
-            'active': dat.active
+            'values': dat.n_values,
+            'genomes': dat.n_genomes,
+            'active': dat.active,
+            'selected': dat.selected
         })
 
     data = {'data': all_rows}
@@ -309,11 +313,213 @@ def select_metacat_list(request, pk):
     if request.method == 'POST':
         meta_resp = map(int, request.POST.getlist('id'))
         project = Project.objects.get(pk=pk)
-        project.deactivate_all_metadata_categories()
-        activate = MetadataCategory.objects.filter(project=project, pk__in=meta_resp).update(active=True)
+        project.deselect_all_metadata()
+        MetadataCategory.objects.filter(project=project, pk__in=meta_resp).update(selected=True)
         return redirect('targets:project_detail', pk=pk)
 
     return render(request, "targets/select_metadatacategory.html", {'pk': pk})
+
+
+
+# def load_project_data(request, pk):
+#     if request.method == 'POST':
+#         form = DataUploadForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             file_name = request.FILES['file']
+#             project = Project.objects.get(pk=pk)
+#             # Remove the existing file (if any)
+#             if project.data:
+#                 project.data.delete()
+#             if project.imputed_data:
+#                 project.imputed_data.delete()
+#             project.data = file_name
+#             project.save()
+#             # Read data from file
+#             try:
+#                 df = pd.read_excel(project.data, index_col='id')
+#             except pd.errors.ExcelError:
+#                 project.data = None
+#                 project.save()
+#                 messages.error(
+#                     request,
+#                     'Failed to load data, please check formatting and retry.',
+#                     extra_tags="danger")
+#                 return redirect('targets:project_detail', pk=pk)
+#             try:
+#                 organism = project.organism
+#                 # pull existing loci data from database
+#                 # to filter out any values from the table that may
+#                 # not belong. 
+#                 db_loci = organism.get_loci_list(request)
+#                 loci_cols = df.columns.intersection(db_loci)
+
+#                 if len(loci_cols) == 0:
+#                     raise IOError("Loci not found for selected organism")
+#             except AttributeError:
+#                 project.data = None
+#                 project.save()
+#                 messages.error(
+#                     request, 'No Organism! Select organism before uploading data.',
+#                     extra_tags="danger")
+#                 return redirect('targets:project_detail', pk=pk)
+#             except IOError:
+#                 project.data=None
+#                 project.save()
+#                 messages.error(
+#                     request,
+#                     "None of the loci are found for organism. Please check that data matches selected organism.",
+#                     extra_tags="danger")
+#                 return redirect('targets:project_detail', pk=pk)
+            
+#             msg = f"Data successfully added to project. " # add messages 
+
+
+
+#             # Consider all other columns to be metadata
+#             genome_idx = df.index
+#             metadata_cols = df.columns.difference(db_loci)
+#             meta_df = df.loc[genome_idx, metadata_cols]
+#             alleles_df = df.loc[genome_idx, loci_cols]
+
+#             # Drop Genomes (rows) with more than the specified threshold of NaN values
+            
+#             alleles_df = drop_nans(alleles_df, 0.8)
+#             # record dropped genomes
+#             n_genomes_dropped = len(genome_idx.difference(alleles_df.index))
+#             genome_idx = alleles_df.index # update to reflect dropped rows
+#             alleles_df = alleles_df.loc[genome_idx, loci_cols]
+
+#             # Drop Loci (cols) with more than the specified threshold of NaN values
+#             alleles_df = drop_nans(alleles_df, 0.8, axis=1)
+#             # record dropped alleles
+#             n_loci_dropped = len(loci_cols.difference(alleles_df.columns))
+#             # update loci columns to reflect dropped 
+#             loci_cols = alleles_df.columns
+#             # alleles_df = df.loc[genome_idx, loci_cols]
+
+#             print("LOCI Dropped", n_loci_dropped)
+#             print("Genomes Dropped", n_genomes_dropped)
+#             if n_loci_dropped:
+#                 msg += f"{n_loci_dropped} loci were dropped due to missing data. " 
+#             if n_genomes_dropped:
+#                 msg += f"{n_genomes_dropped} genomes were dropped due to missing data. "
+#             # add LOCI to database
+#             print("UPDATING Loci")
+
+#             # ids of existing loci that should be activated (in uploaded table)
+#             Locus.objects.filter(
+#                 project=project,
+#                 name__in=loci_cols).update(active=True)
+#             # ids of existing loci that should be deactivated (not in uploaded table)
+#             Locus.objects.filter(project=project).exclude(
+#                 name__in=loci_cols).update(active=False)
+#             # New loci that are not in database to create
+#             new_loci = list(set(loci_cols) - set(Locus.objects.filter(
+#                 project=project,
+#                 name__in=loci_cols).values_list('name', flat=True)))
+#             # bulk create new loci
+#             Locus.objects.bulk_create(
+#                 [Locus(project=project, name=name) for name in new_loci])
+#             # count number of unique alleles and save to instance
+#             all_loci = Locus.objects.filter(project=project, active=True)
+#             for locus in all_loci:
+#                 locus.alleles = alleles_df[locus.name].dropna().nunique()
+#                 locus.save()
+
+#             # add GENOMES to database
+#             print("UPDATING genomes")
+#             # ids of existing genomes that should be activated (in uploaded table)
+#             Genome.objects.filter(
+#                 project=project,
+#                 name__in=genome_idx).update(active=True)
+#             # ids of existing genomes that should be deactivated (not in uploaded table)
+#             Genome.objects.filter(project=project).exclude(
+#                 name__in=genome_idx).update(active=False)
+#             # New Genomes that are not in database to create
+#             new_genomes = list(set(genome_idx) - set(Genome.objects.filter(
+#                 project=project,
+#                 name__in=genome_idx).values_list('name', flat=True)))
+#             # bulk create new genomes
+#             Genome.objects.bulk_create(
+#                 [Genome(project=project, name=name) for name in new_genomes])
+            
+#             # count number of unique alleles and save to instance
+#             all_genomes = Genome.objects.filter(project=project, active=True)
+#             for genome in all_genomes:
+#                 genome.alleles = alleles_df.loc[genome.name].dropna().size
+#                 genome.metadata = meta_df.loc[genome.name].dropna().size
+#                 genome.save()
+            
+
+#             # add METADATA CATEGORIES to database
+#             print("UPDATING metacategories")
+#             # ids of existing metacats that should be activated (in uploaded table)
+#             MetadataCategory.objects.filter(
+#                 project=project,
+#                 name__in=metadata_cols).update(active=True)
+#             # ids of existing metacats that should be deactivated (not in uploaded table)
+#             MetadataCategory.objects.filter(project=project).exclude(
+#                 name__in=metadata_cols).update(active=False)
+#             # New metacats that are not in database to create
+#             new_metacat = list(set(metadata_cols) - set(MetadataCategory.objects.filter(
+#                 project=project,
+#                 name__in=metadata_cols).values_list('name', flat=True)))
+#             # bulk create new metacats
+#             MetadataCategory.objects.bulk_create(
+#                 [MetadataCategory(project=project, name=name) for name in new_metacat])
+
+#             # count number of genomes with data and unique values and save to instance
+#             all_meta = MetadataCategory.objects.filter(project=project, active=True)
+#             for meta in all_meta:
+#                 meta.values = meta_df[meta.name].dropna().nunique()
+#                 meta.genomes = meta_df[meta.name].dropna().size
+#                 meta.save()
+
+#             # impute data
+#             print("IMPUTING DATA")
+#             imputed_data = impute_missing_alleles(project.get_allele_table())
+#             print(imputed_data)
+#             # Convert the DataFrame to CSV format as a string
+#             csv_content = imputed_data.to_csv(index=False, sep="\t")
+
+#             # Create a ContentFile from the CSV content
+#             content_file = ContentFile(csv_content)
+
+#             # Create a File instance from the ContentFile
+#             file_instance = File(content_file)
+
+#             # Create an instance of YourModel and associate the File instance with its file_field
+#             project.imputed_data.save(f'imputed_data_{project.id}.tsv', file_instance)
+#             project.save()
+#             messages.success(request, msg)
+#             return redirect('targets:project_detail', pk=pk)
+#     else:
+#         form = DataUploadForm()
+
+#     return render(request, 'targets/data_upload.html', {'form': form})
+
+# def data_list_view(request, pk):
+#     project = Project.objects.get(id=pk)
+#     allele_table = project.get_allele_table()
+#     metadata_table = project.get_metadata_table()
+#     df = metadata_table.join(allele_table)
+#     df.index.name = "Genome ID"
+#     html = df.reset_index().to_html(
+#         table_id="datatable",
+#         classes=['display', 'table', 'table-hover'],
+#         justify="left", index=False)
+#     metadata_idx = [i for i in range(1, metadata_table.shape[1] + 1)]
+#     allele_idx = [i for i in range(metadata_table.shape[1] + 1, df.shape[1] + 1)]
+
+#     return render(
+#                 request, 'targets/data_table.html',
+#                 {
+#                     'table': html,
+#                     'project': project,
+#                     'meta_idx': metadata_idx,
+#                     'allele_idx': allele_idx
+#                 }
+#                 )
 
 
 
@@ -322,57 +528,83 @@ def load_project_data(request, pk):
         form = DataUploadForm(request.POST, request.FILES)
         if form.is_valid():
             file_name = request.FILES['file']
-            print(pk)
             project = Project.objects.get(pk=pk)
-            # Remove the existing file (if any)
-            if project.data:
-                project.data.delete()
-            if project.imputed_data:
-                project.imputed_data.delete()
-            project.data = file_name
-            project.save()
+            
             # Read data from file
             try:
-                df = pd.read_excel(project.data, index_col='id')
-            except Exception:
-                project.data = None
-                project.save()
-                messages.error(request, 'Failed to load data, please check formatting and retry.')
+                df = pd.read_excel(file_name, index_col=0, dtype=str, na_values='',
+                                   keep_default_na=False).fillna('')
+                df.index.name="#Genome"
+            except pd.errors.ExcelError:
+                messages.error(
+                    request,
+                    'Failed to load data, please check formatting and retry.',
+                    extra_tags="danger")
                 return redirect('targets:project_detail', pk=pk)
+            try:
+                organism = project.organism
+                # pull existing loci data from database
+                # to filter out any values from the table that may
+                # not belong. 
+                db_loci = organism.get_loci_list(request)
+                loci_cols = df.columns.intersection(db_loci)
 
-            organism = project.organism
+                if len(loci_cols) == 0:
+                    raise IOError("Loci not found for selected organism")
+            except AttributeError:
+                messages.error(
+                    request, 'No Organism! Select organism before uploading data.',
+                    extra_tags="danger")
+                return redirect('targets:project_detail', pk=pk)
+            except IOError:
+                messages.error(
+                    request,
+                    "None of the loci are found for organism. Please check that data matches selected organism.",
+                    extra_tags="danger")
+                return redirect('targets:project_detail', pk=pk)
+            
+            msg = f"Data successfully added to project. " # add messages 
 
-            # pull existing loci data from database
-            # to filter out any values from the table that may
-            # not belong. 
-            db_loci = organism.get_loci_list(request)
-    
-            loci_cols = df.columns.intersection(db_loci)
-            threshold_percentage = 75
 
-            # Calculate the minimum number of non-NaN values required based on the threshold percentage
-            threshold_count = int((100 - threshold_percentage) / 100 * len(loci_cols))
 
-            # Drop rows with more than the specified threshold count of NaN values
-            df = df.dropna(thresh=threshold_count)
-            genome_idx = df.index # update to reflect dropped rows
             # Consider all other columns to be metadata
+            genome_idx = df.index
             metadata_cols = df.columns.difference(db_loci)
-
             meta_df = df.loc[genome_idx, metadata_cols]
             alleles_df = df.loc[genome_idx, loci_cols]
-            # TODO: add warning if alleles/genomes are removed
+
+            # Drop Genomes (rows) with more than the specified threshold of NaN values
             
+            alleles_df = drop_nans(alleles_df, 0.8)
+            # record dropped genomes
+            n_genomes_dropped = len(genome_idx.difference(alleles_df.index))
+            genome_idx = alleles_df.index # update to reflect dropped rows
+            alleles_df = alleles_df.loc[genome_idx, loci_cols]
+
+            # Drop Loci (cols) with more than the specified threshold of NaN values
+            alleles_df = drop_nans(alleles_df, 0.8, axis=1)
+            # record dropped alleles
+            n_loci_dropped = len(loci_cols.difference(alleles_df.columns))
+            # update loci columns to reflect dropped 
+            loci_cols = alleles_df.columns
+            alleles_df = df.loc[genome_idx, loci_cols]
+
+            print("LOCI Dropped", n_loci_dropped)
+            print("Genomes Dropped", n_genomes_dropped)
+            if n_loci_dropped:
+                msg += f"{n_loci_dropped} loci were dropped due to missing data. " 
+            if n_genomes_dropped:
+                msg += f"{n_genomes_dropped} genomes were dropped due to missing data. "
             # add LOCI to database
             print("UPDATING Loci")
 
             # ids of existing loci that should be activated (in uploaded table)
             Locus.objects.filter(
                 project=project,
-                name__in=loci_cols).update(active=True)
+                name__in=loci_cols).update(active=True, selected=True)
             # ids of existing loci that should be deactivated (not in uploaded table)
             Locus.objects.filter(project=project).exclude(
-                name__in=loci_cols).update(active=False)
+                name__in=loci_cols).update(active=False, selected=False)
             # New loci that are not in database to create
             new_loci = list(set(loci_cols) - set(Locus.objects.filter(
                 project=project,
@@ -381,7 +613,7 @@ def load_project_data(request, pk):
             Locus.objects.bulk_create(
                 [Locus(project=project, name=name) for name in new_loci])
             # count number of unique alleles and save to instance
-            all_loci = Locus.objects.filter(project=project, active=True)
+            all_loci = Locus.objects.filter(project=project, active=True, selected=True)
             for locus in all_loci:
                 locus.alleles = alleles_df[locus.name].dropna().nunique()
                 locus.save()
@@ -391,10 +623,10 @@ def load_project_data(request, pk):
             # ids of existing genomes that should be activated (in uploaded table)
             Genome.objects.filter(
                 project=project,
-                name__in=genome_idx).update(active=True)
+                name__in=genome_idx).update(active=True, selected=True)
             # ids of existing genomes that should be deactivated (not in uploaded table)
             Genome.objects.filter(project=project).exclude(
-                name__in=genome_idx).update(active=False)
+                name__in=genome_idx).update(active=False, selected=False)
             # New Genomes that are not in database to create
             new_genomes = list(set(genome_idx) - set(Genome.objects.filter(
                 project=project,
@@ -404,7 +636,7 @@ def load_project_data(request, pk):
                 [Genome(project=project, name=name) for name in new_genomes])
             
             # count number of unique alleles and save to instance
-            all_genomes = Genome.objects.filter(project=project, active=True)
+            all_genomes = Genome.objects.filter(project=project, active=True, selected=True)
             for genome in all_genomes:
                 genome.alleles = alleles_df.loc[genome.name].dropna().size
                 genome.metadata = meta_df.loc[genome.name].dropna().size
@@ -416,10 +648,10 @@ def load_project_data(request, pk):
             # ids of existing metacats that should be activated (in uploaded table)
             MetadataCategory.objects.filter(
                 project=project,
-                name__in=metadata_cols).update(active=True)
+                name__in=metadata_cols).update(active=True, selected=True)
             # ids of existing metacats that should be deactivated (not in uploaded table)
             MetadataCategory.objects.filter(project=project).exclude(
-                name__in=metadata_cols).update(active=False)
+                name__in=metadata_cols).update(active=False, selected=False)
             # New metacats that are not in database to create
             new_metacat = list(set(metadata_cols) - set(MetadataCategory.objects.filter(
                 project=project,
@@ -429,7 +661,7 @@ def load_project_data(request, pk):
                 [MetadataCategory(project=project, name=name) for name in new_metacat])
 
             # count number of genomes with data and unique values and save to instance
-            all_meta = MetadataCategory.objects.filter(project=project, active=True)
+            all_meta = MetadataCategory.objects.filter(project=project, active=True, selected=True)
             for meta in all_meta:
                 meta.values = meta_df[meta.name].dropna().nunique()
                 meta.genomes = meta_df[meta.name].dropna().size
@@ -437,21 +669,66 @@ def load_project_data(request, pk):
 
             # impute data
             print("IMPUTING DATA")
-            imputed_data = impute_missing_alleles(project.get_allele_table())
-            print(imputed_data)
-            # Convert the DataFrame to CSV format as a string
-            csv_content = imputed_data.to_csv(index=False, sep="\t")
+            imputed_data = impute_missing_alleles(alleles_df).set_index('Genome')
+            alleles_df.index.name = 'genome'
+            alleles_df = pd.melt(
+                alleles_df, ignore_index=False,
+                var_name = "locus", value_name="allele")
+            alleles_df = alleles_df.reset_index().set_index(['genome', 'locus'])
+            imputed_data.index.name = 'genome'
+            imputed_data.columns = ['locus', 'imputed']
 
-            # Create a ContentFile from the CSV content
-            content_file = ContentFile(csv_content)
+            imputed_data = imputed_data.reset_index().set_index(['genome', 'locus'])
+            alleles_df = alleles_df.join(imputed_data).reset_index()
+            alleles_df['project'] = project
+            # replace locus names with ids
+            locus_map = {k: Locus.objects.get(name=k) for k in alleles_df['locus'].unique()}
+            alleles_df['locus'] = alleles_df['locus'].replace(locus_map)
+            genome_map = {k: Genome.objects.get(name=k) for k in alleles_df['genome'].unique()}
+            alleles_df['genome'] = alleles_df['genome'].replace(genome_map)
+            alleles_df = alleles_df.set_index(['project', 'genome', 'locus'])
+            # Adding Alleles
+            print("ADDING ALLELES")
+            Allele.objects.bulk_create(
+                [Allele(
+                    project=dat[0],
+                    genome=dat[1],
+                    locus=dat[2],
+                    allele=dat[3],
+                    imputed=dat[4]
+                    ) for dat in alleles_df.to_records()], 
+                update_conflicts=True,
+                unique_fields=['project', 'genome', 'locus'],
+                update_fields=['allele', 'imputed'],
+            )
+            # select metadata using current genome idx
+            print("ADDING METADATA")
+            meta_df = meta_df.loc[genome_idx, metadata_cols]
+            meta_df.index.name = 'genome'
+            meta_df = pd.melt(
+                meta_df, ignore_index=False,
+                var_name='category', value_name='value')
+            meta_df['project'] = project
+            meta_df = meta_df.reset_index()
+            cat_map = {k: MetadataCategory.objects.get(name=k) for k in meta_df['category'].unique()}
+            meta_df['category'] = meta_df['category'].replace(cat_map)
+            genome_map = {k: Genome.objects.get(name=k) for k in meta_df['genome'].unique()}
+            meta_df['genome'] = meta_df['genome'].replace(genome_map)
+            meta_df = meta_df.set_index(['project', 'genome', 'category'])
+            Metadata.objects.bulk_create(
+                [Metadata(
+                    project=dat[0],
+                    genome=dat[1],
+                    category=dat[2],
+                    value=dat[3]
+                ) for dat in meta_df.to_records()], 
+                update_conflicts=True,
+                unique_fields=['project', 'genome', 'category'],
+                update_fields=['value'],
+            )
 
-            # Create a File instance from the ContentFile
-            file_instance = File(content_file)
 
-            # Create an instance of YourModel and associate the File instance with its file_field
-            project.imputed_data.save(f'imputed_data_{project.id}.tsv', file_instance)
-            project.save()
-                       
+            messages.success(request, msg)
             return redirect('targets:project_detail', pk=pk)
     else:
         form = DataUploadForm()
@@ -460,8 +737,18 @@ def load_project_data(request, pk):
 
 def data_list_view(request, pk):
     project = Project.objects.get(id=pk)
-    allele_table = project.get_allele_table()
-    metadata_table = project.get_metadata_table()
+    allele_table = pd.DataFrame(Allele.objects.filter(
+        project=project,
+        genome__in=project.get_selected_genomes(),
+        locus__in=project.get_selected_loci()).values_list('genome__name', 'locus__name', 'allele'),
+        columns=['Genome', 'Locus', 'Allele']).pivot(index='Genome', columns='Locus', values='Allele')
+    metadata_table = pd.DataFrame(Metadata.objects.filter(
+        project=project,
+        genome__in=project.get_selected_genomes(),
+        category__in=project.get_selected_metadata()).values_list('genome__name', 'category__name', 'value'),
+        columns=['Genome', 'Category', 'Value']).pivot(index='Genome', columns='Category', values='Value')
+    print(allele_table)
+    
     df = metadata_table.join(allele_table)
     df.index.name = "Genome ID"
     html = df.reset_index().to_html(
@@ -490,16 +777,9 @@ def data_delete_view(request, pk):
         project.deactivate_all_loci()
         project.deactivate_all_metadata_categories()
         # Delete all targetsets associated with the data
-        TargetCollection.objects.filter(project=project).delete()
+        # TargetCollection.objects.filter(project=project).delete()
 
-        # Remove the existing file (if any)
-        if project.data:
-            project.data.delete()
-        if project.imputed_data:
-            project.imputed_data.delete()
-        project.data = None
-        project.imputed_data = None
-        project.save()
+    
         # Handle the confirmation of the delete action
         return redirect('targets:project_list')  # Redirect to a success page after deletion
 
@@ -533,7 +813,7 @@ class TargetCollectionDetailView(DetailView):
 class TargetCollectionUpdateView(SuccessMessageMixin, UpdateView):
     model = TargetCollection
     template_name_suffix = '_update'
-    form_class = TargetCollectionForm
+    form_class = TargetCollectionUpdateForm
     success_message = "Target collection was successfully updated:  %(name)s"
 
     

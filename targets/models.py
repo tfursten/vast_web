@@ -50,11 +50,11 @@ class Organism(models.Model):
 
 
 
-
 class Project(models.Model):
     """
     Model representing a project.
     """
+
     name = models.CharField(max_length=64)
     description = models.CharField(max_length=255, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
@@ -76,25 +76,25 @@ class Project(models.Model):
         return f"{self.name}"
 
     @property
-    def count_loci(self):
+    def count_selected_loci(self):
         """
-        Property returning the count of loci associated with the project.
+        Property returning the count of loci selected with the project.
         """
-        return self.locus_set.count()
+        return self.locus_set.filter(active=True, selected=True).count()
 
     @property
-    def count_genomes(self):
+    def count_selected_genomes(self):
         """
-        Property returning the count of genomes associated with the project.
+        Property returning the count of genomes selected with the project.
         """
-        return self.genome_set.count()
+        return self.genome_set.filter(active=True, selected=True).count()
     
     @property
-    def count_metadata(self):
+    def count_selected_metadata(self):
         """
-        Property returning the count of unique metadata categories associated with the project.
+        Property returning the count of unique metadata categories selected with the project.
         """
-        return self.metadatacategory_set.count()
+        return self.metadatacategory_set.filter(active=True, selected=True).count()
 
     @property
     def count_active_loci(self):
@@ -124,23 +124,26 @@ class Project(models.Model):
         """
         return self.targetcollection_set.filter().count()
     
-    def get_genomes(self):
-        """
-        Return genomes associated with the project
-        """
-        return self.genome_set.all()
 
-    def get_loci(self):
+            
+    
+    def get_selected_genomes(self):
         """
-        Return loci associated with the project
+        Return genomes selected with the project
         """
-        return self.locus_set.all()
+        return self.genome_set.filter(active=True, selected=True)
 
-    def get_metadata(self):
+    def get_selected_loci(self):
         """
-        Return metadata categories associated with the project.
+        Return loci selected with the project
         """
-        return self.metadatacategory_set.all()
+        return self.locus_set.filter(active=True, selected=True)
+
+    def get_selected_metadata(self):
+        """
+        Return metadata categories selected with the project.
+        """
+        return self.metadatacategory_set.filter(active=True, selected=True)
     
     def get_active_genomes(self):
         """
@@ -176,27 +179,46 @@ class Project(models.Model):
         """
         Return metadata categories associated with the project.
         """
-        return self.metadatacategory_set.filter(active=False)   
-     
+        return self.metadatacategory_set.filter(active=False)
+
+    def deselect_all_genomes(self):
+        """
+        Deselect all Genome instances associated with this Project.
+        """
+        Genome.objects.filter(project=self, selected=True).update(selected=False)
+
+    def deselect_all_loci(self):
+        """
+        Deselect all Locus instances associated with this Project.
+        """
+        Locus.objects.filter(project=self, selected=True).update(selected=False)
+
+    
+    def deselect_all_metadata(self):
+        """
+        Deselect all MetadataCategory instances associated with this Project.
+        """
+        MetadataCategory.objects.filter(project=self, selected=True).update(selected=False)
+
     def deactivate_all_genomes(self):
         """
         Deactivate all Genome instances associated with this Project.
         """
-        Genome.objects.filter(project=self, active=True).update(active=False)
+        Genome.objects.filter(project=self, active=True).update(active=False, selected=False)
 
 
     def deactivate_all_loci(self):
         """
         Deactivate all Locus instances associated with this Project.
         """
-        Locus.objects.filter(project=self, active=True).update(active=False)
+        Locus.objects.filter(project=self, active=True).update(active=False, selected=False)
    
 
     def deactivate_all_metadata_categories(self):
         """
         Deactivate all metadata category instances associated with this Project.
         """
-        MetadataCategory.objects.filter(project=self, active=True).update(active=False)
+        MetadataCategory.objects.filter(project=self, active=True).update(active=False, selected=False)
 
     def get_allele_table(self):
         """
@@ -207,6 +229,7 @@ class Project(models.Model):
         df = pd.read_excel(
             self.data.path, index_col=0, na_values='',
             keep_default_na=False, dtype=str)
+        df.index.name = "#Genome"
         return df.loc[active_genomes, active_loci].fillna('')
 
     def get_metadata_table(self):
@@ -235,8 +258,9 @@ class MetadataCategory(models.Model):
     name = models.CharField(max_length=255)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
-    genomes = models.PositiveIntegerField(null=True, blank=True) # number of genomes with metadata
-    values = models.PositiveIntegerField(null=True, blank=True) # number of unique values
+    selected = models.BooleanField(default=True)
+    n_genomes = models.PositiveIntegerField(null=True, blank=True) # number of genomes with metadata
+    n_values = models.PositiveIntegerField(null=True, blank=True) # number of unique values
 
     class Meta:
         unique_together = ('project', 'name')
@@ -246,6 +270,9 @@ class MetadataCategory(models.Model):
         String representation of the metadata category.
         """
         return f"{self.name}"
+    
+    class Meta:
+        ordering = ("name",)
 
 
 
@@ -259,7 +286,8 @@ class Locus(models.Model):
     name = models.CharField(max_length=255)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
-    alleles = models.PositiveIntegerField(null=True, blank=True) # number of unqiue alleles
+    selected = models.BooleanField(default=True)
+    n_alleles = models.PositiveIntegerField(null=True, blank=True) # number of unqiue alleles
 
     class Meta:
         unique_together = ('project', 'name')
@@ -295,8 +323,9 @@ class Genome(models.Model):
     name = models.PositiveIntegerField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
-    alleles = models.PositiveIntegerField(null=True, blank=True) # number of loci with alleles
-    metadata = models.PositiveIntegerField(null=True, blank=True) # number of metadata categories with data
+    selected = models.BooleanField(default=True)
+    n_alleles = models.PositiveIntegerField(null=True, blank=True) # number of loci with alleles
+    n_metadata = models.PositiveIntegerField(null=True, blank=True) # number of metadata categories with data
     
 
     # def count_metadata(self):
@@ -320,6 +349,26 @@ class Genome(models.Model):
     class Meta:
         ordering = ("name",)
         unique_together = ('project', 'name')
+
+class Allele(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    genome = models.ForeignKey(Genome, on_delete=models.CASCADE)
+    locus = models.ForeignKey(Locus, on_delete=models.CASCADE)
+    allele = models.CharField(max_length=16, blank=True, null=True)
+    imputed = models.CharField(max_length=16, blank=True, null=True)
+
+    class Meta:
+        unique_together = ('project', 'genome', 'locus')
+
+class Metadata(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    genome = models.ForeignKey(Genome, on_delete=models.CASCADE)
+    category = models.ForeignKey(MetadataCategory, on_delete=models.CASCADE)
+    value = models.CharField(max_length=16, blank=True, null=True)
+
+    class Meta:
+        unique_together = ('project', 'genome', 'category')
+
 
 class TargetCollection(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)

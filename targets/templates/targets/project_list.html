@@ -37,7 +37,7 @@
                         <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:organism_detail' project.organism.id %}"><span data-feather="check-circle" class="rm"></span>{{ project.organism.name }}</a>
                     </td>
 
-                    {% if project.data %}
+                    {% if project.count_active_loci %}
                         <td>
                             <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:data_list' project.id %}"><span data-feather="eye"></span></a>
                             <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:add_data' project.id %}"><span data-feather="edit"></span></a>
@@ -45,16 +45,16 @@
 
                         </td>
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:genome_list' project.id %}"><span data-feather="check-circle" class="rm"></span><span class="badge bg-success">{{ project.count_active_genomes}}</span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:genome_list' project.id %}"><span data-feather="check-circle" class="rm"></span><span class="badge bg-success">{{ project.count_selected_genomes}}</span></a>
                             <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:select_genomes' project.id %}"><span data-feather="edit"></span></a>
                         </td>
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:locus_list' project.id %}"><span data-feather="check-circle" class="rm"></span><span class="badge bg-success">{{ project.count_active_loci}}</span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:locus_list' project.id %}"><span data-feather="check-circle" class="rm"></span><span class="badge bg-success">{{ project.count_selected_loci}}</span></a>
                             <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:select_loci' project.id %}"><span data-feather="edit"></span></a>
 
                         </td>
                         <td>
-                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:metacat_list' project.id %}"><span data-feather="check-circle" class="rm"></span><span class="badge bg-success">{{ project.count_active_metadata}}</span></a>
+                            <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:metacat_list' project.id %}"><span data-feather="check-circle" class="rm"></span><span class="badge bg-success">{{ project.count_selected_metadata}}</span></a>
                             <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:select_metacat' project.id %}"><span data-feather="edit"></span></a>
                         </td>
                         {% if project.count_target_collections %}

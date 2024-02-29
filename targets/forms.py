@@ -6,6 +6,7 @@ from django.core.validators import FileExtensionValidator
 from django.forms.widgets import CheckboxSelectMultiple
 from django.utils.safestring import mark_safe
 import plotly.express as px
+from django.db.models import Q
 
 
 
@@ -22,14 +23,42 @@ class TargetCollectionForm(ModelForm):
         model = TargetCollection
         fields = ['name', 'project', 'description']
     
-    # def __init__(self, *args, **kwargs):
-    #     if 'project' in kwargs:
-    #         project = kwargs.pop('project')
-    #         kwargs.update(initial={
-    #             'project': project
-    #         })
-    #     super(TargetCollectionForm, self).__init__(*args, **kwargs)
-    #     self.fields['project'].queryset = Project.objects.order_by('name')
+        labels = {
+            'project': mark_safe("""
+                        <b>Select Project </b>
+                        <a href="#" data-toggle="tooltip"
+                        title='Only projects that have an assigned organism and data uploaded are displayed. If project is not in list, finish project setup before adding target collection.'>
+                        <span data-feather="info"
+                        style="display: inline-block;"></span></a>"""),
+            
+        }
+        
+    def __init__(self, *args, **kwargs):
+        if 'project' in kwargs:
+            project = kwargs.pop('project')
+            kwargs.update(initial={
+                'project': project
+            })
+        super(TargetCollectionForm, self).__init__(*args, **kwargs)
+        self.fields['project'].queryset = Project.objects.filter(
+            id__in=Locus.objects.filter(active=True).values_list('project', flat=True).distinct())
+        
+
+  
+    
+            
+
+
+
+class TargetCollectionUpdateForm(ModelForm):
+    """
+    Update form removes project. Once a target collection
+    is created, don't allow project to be changed.
+    """
+    class Meta:
+        model = TargetCollection
+        fields = ['name', 'description']
+
     
 class DataUploadForm(forms.Form):
     file = forms.FileField(label='Upload BIGSdb excel file from PubMLST')
