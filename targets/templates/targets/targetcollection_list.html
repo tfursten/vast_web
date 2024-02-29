@@ -8,9 +8,9 @@
 <h1 class="border-bottom">Target Collections</h1>
     <div class="d-grid gap-2 d-md-block mt-2 mb-2">
         {% if pk %}
-            <a class="btn btn-primary btn" href="{% url 'targets:target_collection_create' pk %}" role="button"><span data-feather="plus" class="rm"></span>New Target Collection</a>
+            <a class="btn btn-primary btn" href="{% url 'targets:target_collection_create' pk %}" role="button"><span class="rm"><i class="bi bi-plus-lg"></i></span>New Target Collection</a>
         {% else %}
-            <a class="btn btn-primary btn" href="{% url 'targets:target_collection_create' %}" role="button"><span data-feather="plus" class="rm"></span>New Target Collection</a>
+            <a class="btn btn-primary btn" href="{% url 'targets:target_collection_create' %}" role="button"><span class="rm"><i class="bi bi-plus-lg"></i></span>New Target Collection</a>
         {% endif %}
     </div>
     
@@ -29,23 +29,23 @@
             {% for targetcollection in targetcollection_list %}
             <tr>
                 <td>
-                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:target_collection_detail' targetcollection.id %}"><span data-feather="check-circle" class="rm"></span>{{ targetcollection.name}}</a>
-                    <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:target_collection_update' targetcollection.id %}"><span data-feather="edit" ></span></a>
-                    <a role="button" class="btn btn-outline-danger btn-sm" href="{% url 'targets:target_collection_delete' targetcollection.id %}"><span data-feather="trash" ></span></a>
+                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:target_collection_detail' targetcollection.id %}"><span class="rm"><i class="bi bi-box-arrow-up-right"></i></span>{{ targetcollection.name}}</a>
+                    <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:target_collection_update' targetcollection.id %}"><span><i class="bi bi-pencil"></i></span></a>
+                    <a role="button" class="btn btn-outline-danger btn-sm" href="{% url 'targets:target_collection_delete' targetcollection.id %}"><span><i class="bi bi-trash-fill"></i></span></a>
                 </td>
                 <td>
-                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:project_detail' targetcollection.project.id %}"><span data-feather="check-circle" class="rm"></span>{{ targetcollection.project.name}}</a>
+                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:project_detail' targetcollection.project.id %}"><span class="rm"><i class="bi bi-box-arrow-up-right"></i></span>{{ targetcollection.project.name}}</a>
                 </td>
                 <td>
-                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:organism_detail' targetcollection.project.organism.id %}"><span data-feather="check-circle" class="rm"></span>{{ targetcollection.project.organism.name }}</a>
+                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:organism_detail' targetcollection.project.organism.id %}"><span class="rm"><i class="bi bi-box-arrow-up-right"></i></span>{{ targetcollection.project.organism.name }}</a>
                 </td>
                 <td>
-                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:target_collection_targets_list' targetcollection.id %}"><span data-feather="list" class="rm"></span>{{ targetcollection.count_loci }}</a>
-                    <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:target_collection_add_targets_opt' targetcollection.id %}"><span data-feather="plus" style="display: inline-block;"></span></a>
-                    <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:target_collection_add_targets_man' targetcollection.id %}"><span data-feather="edit" style="display: inline-block;"></span></a>
-                    <a role="button" class="btn btn-primary btn-sm" href="{% url 'targets:resolution_figure' targetcollection.id %}"><span data-feather="pie-chart" class="rm"></span>Resolution</a>
-                    <a role="button" class="btn btn-primary btn-sm" href="{% url 'targets:profile_list' targetcollection.id %}"><span data-feather="table" class="rm"></span>Profile</a>
-                    <a role="button" class="btn btn-primary btn-sm" href="#"><span data-feather="share-2" class="rm"></span>Tree</a>
+                    <a role="button" class="btn btn-success btn-sm" href="{% url 'targets:target_collection_targets_list' targetcollection.id %}"><span class="rm"><i class="bi bi-list-ul"></i></span>{{ targetcollection.count_loci }}</a>
+                    <a role="button" class="btn btn-outline-success btn-sm" href="{% url 'targets:target_collection_add_targets_opt' targetcollection.id %}"><span><i class="bi bi-plus-circle"></i></span></a>
+                    <a role="button" class="btn btn-outline-primary btn-sm" href="{% url 'targets:target_collection_add_targets_man' targetcollection.id %}"><span><i class="bi bi-pencil"></i></span></a>
+                    <a role="button" class="btn btn-primary btn-sm" href="{% url 'targets:resolution_figure' targetcollection.id %}"><span class="rm"><i class="bi bi-pie-chart-fill"></i></span>Resolution</a>
+                    <a role="button" class="btn btn-primary btn-sm" href="{% url 'targets:profile_list' targetcollection.id %}"><span class="rm"><i class="bi bi-table"></i></span>Profile</a>
+                    <a role="button" class="btn btn-primary btn-sm" href="#"><span class="rm"><i class="bi bi-diagram-3-fill"></i></span>Tree</a>
 
 
                 </td>

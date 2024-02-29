@@ -6,10 +6,10 @@
         <div class="card-body">
             <form method="post">{% csrf_token %}
                 <h3>Are you sure you want to delete all data from project?</h3>
-                <p class="text-danger">This will permenently delete all data associated with this project, including target collections.</p>
+                <p class="text-danger">This will permenently delete all data associated with this project.</p>
                 <div class="d-grid gap-2 d-md-block mt-2">
-                    <button class="btn btn-outline-danger" type="submit">Delete <span data-feather="x-octagon"></span></button>
-                    <a class="btn btn-success btn" href="{% url 'targets:project_detail' project.id %}" role="button">Cancel <span data-feather="corner-up-left"></span></a>
+                    <button class="btn btn-outline-danger" type="submit"><i class="bi bi-x-octagon-fill rm"></i>Delete</button>
+                    <a class="btn btn-success btn" href="{% url 'targets:project_detail' project.id %}" role="button"><i class="bi bi-box-arrow-left rm"></i>Cancel</a>
                 </div>
             </form>
         </div>

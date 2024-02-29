@@ -5,12 +5,13 @@
 {% endblock head %}
 
 {% block content %}
-<h1 class="border-bottom">Data Table for Project: {{ project.name }}</h1>
+<h1 class="border-bottom">Project: {{ project.name }}</h1>
     <div class="d-grid gap-2 d-md-block mt-2 mb-2">
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_detail' project.id %}" role="button">Project <span data-feather="corner-up-left"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_list' %}" role="button">Projects <span data-feather="list"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button">Home <span data-feather="corner-up-left"></span></a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_detail' project.id %}" role="button"><i class="bi bi-box-arrow-in-left rm"></i>Project</a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_list' %}" role="button"><i class="bi bi-list rm"></i>Projects</a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
     </div>
+<h3 class="border-bottom">Profile and metadata table </h3>
     
     {{ table | safe }}
 
@@ -61,6 +62,7 @@
           },
           {
             extend: 'copy',
+            text: '<i class="bi bi-copy rm"></i>Copy',
             title: 'Data Table',
             exportOptions: {
                         columns: ':visible'
@@ -68,6 +70,7 @@
           },
           {
             extend: 'csv',
+            text: '<i class="bi bi-download rm"></i>CSV',
             title: 'Data Table',
             exportOptions: {
                         columns: ':visible'
@@ -75,11 +78,13 @@
           },
           {
             extend: 'excel',
+            text: '<i class="bi bi-download rm"></i>Excel',
             title: 'Data Table',
             exportOptions: {
                         columns: ':visible'
                     }
           },
+
 ]
           }}
       );

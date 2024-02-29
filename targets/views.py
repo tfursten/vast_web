@@ -536,11 +536,16 @@ def load_project_data(request, pk):
                                    keep_default_na=False).fillna('')
                 df.index.name="#Genome"
             except pd.errors.ExcelError:
-                messages.error(
-                    request,
-                    'Failed to load data, please check formatting and retry.',
-                    extra_tags="danger")
-                return redirect('targets:project_detail', pk=pk)
+                try:
+                    df = pd.read_csv(file_name, index_col=0, dtype=str, na_values='',
+                                   keep_default_na=False).fillna('')
+                    df.index.name="#Genome"
+                except Exception:
+                    messages.error(
+                        request,
+                        'Failed to load data, please check formatting and retry.',
+                        extra_tags="danger")
+                    return redirect('targets:project_detail', pk=pk)
             try:
                 organism = project.organism
                 # pull existing loci data from database
@@ -615,7 +620,7 @@ def load_project_data(request, pk):
             # count number of unique alleles and save to instance
             all_loci = Locus.objects.filter(project=project, active=True, selected=True)
             for locus in all_loci:
-                locus.alleles = alleles_df[locus.name].dropna().nunique()
+                locus.n_alleles = alleles_df[locus.name].dropna().nunique()
                 locus.save()
 
             # add GENOMES to database
@@ -638,8 +643,8 @@ def load_project_data(request, pk):
             # count number of unique alleles and save to instance
             all_genomes = Genome.objects.filter(project=project, active=True, selected=True)
             for genome in all_genomes:
-                genome.alleles = alleles_df.loc[genome.name].dropna().size
-                genome.metadata = meta_df.loc[genome.name].dropna().size
+                genome.n_alleles = alleles_df.loc[genome.name].dropna().size
+                genome.n_metadata = meta_df.loc[genome.name].dropna().size
                 genome.save()
             
 
@@ -663,8 +668,8 @@ def load_project_data(request, pk):
             # count number of genomes with data and unique values and save to instance
             all_meta = MetadataCategory.objects.filter(project=project, active=True, selected=True)
             for meta in all_meta:
-                meta.values = meta_df[meta.name].dropna().nunique()
-                meta.genomes = meta_df[meta.name].dropna().size
+                meta.n_values = meta_df[meta.name].dropna().nunique()
+                meta.n_genomes = meta_df[meta.name].dropna().size
                 meta.save()
 
             # impute data
@@ -737,16 +742,8 @@ def load_project_data(request, pk):
 
 def data_list_view(request, pk):
     project = Project.objects.get(id=pk)
-    allele_table = pd.DataFrame(Allele.objects.filter(
-        project=project,
-        genome__in=project.get_selected_genomes(),
-        locus__in=project.get_selected_loci()).values_list('genome__name', 'locus__name', 'allele'),
-        columns=['Genome', 'Locus', 'Allele']).pivot(index='Genome', columns='Locus', values='Allele')
-    metadata_table = pd.DataFrame(Metadata.objects.filter(
-        project=project,
-        genome__in=project.get_selected_genomes(),
-        category__in=project.get_selected_metadata()).values_list('genome__name', 'category__name', 'value'),
-        columns=['Genome', 'Category', 'Value']).pivot(index='Genome', columns='Category', values='Value')
+    allele_table = project.get_allele_table()
+    metadata_table = project.get_metadata_table()
     print(allele_table)
     
     df = metadata_table.join(allele_table)
@@ -893,17 +890,17 @@ def get_targets_json(request, pk, selected=False):
         all_rows.append({
             'id': locus.id,
             'name': locus.name,
-            'alleles': locus.alleles,
+            'alleles': locus.n_alleles,
             'active': True
     })
     # If selected is not set, return all active loci.
     if not selected:
-        all_active = project.get_active_loci().difference(selected_targets)
+        all_active = project.get_selected_loci().difference(selected_targets)
         for locus in all_active:
             all_rows.append({
                 'id': locus.id,
                 'name': locus.name,
-                'alleles': locus.alleles,
+                'alleles': locus.n_alleles,
                 'active': False
             })
     data = {'data': all_rows}
@@ -940,16 +937,17 @@ class TargetCollectionAddTargets(SuccessMessageMixin, UpdateView):
         response = super().form_valid(form)
         target_collection = TargetCollection.objects.get(id=self.kwargs.get('pk'))
         project = target_collection.project
-        alleles_df = project.get_allele_table()
-        imputed_df = project.get_imputed_data()
+        # alleles_df = project.get_allele_table()
+        imputed_df = project.get_imputed_data() 
+        print(imputed_df.shape)
         selected_loci = target_collection.loci.all()
-        alleles_df = format_data_for_optimization(
-            alleles_df, imputed_df)
-            
+        alleles_df = format_data_for_optimization( # UPDATE THIS
+            imputed_df)
+        # Get loci that are not already a part of collection    
         loci_options = alleles_df.columns.difference(
             selected_loci.values_list('name', flat=True))
-        loci_options_df = alleles_df[list(loci_options)]   
-
+        alleles_df = alleles_df[list(loci_options)]
+        # get form values
         randomize = form.cleaned_data['randomize']
         include_existing = form.cleaned_data['include_existing']
         metadata_cat = form.cleaned_data['metadata']
@@ -963,7 +961,7 @@ class TargetCollectionAddTargets(SuccessMessageMixin, UpdateView):
                     selected_loci.values_list('name', flat=True))])
         else:
             starting_resolution = get_resolution(get_starting_resolution(alleles_df.index))
-        add_targets = optimization_loop(loci_options_df, starting_resolution, n_targets, randomize, meta_df)
+        add_targets = optimization_loop(alleles_df, starting_resolution, n_targets, randomize, meta_df)
         add_target_inst = Locus.objects.filter(project=project, name__in=add_targets)
         target_collection.loci.add(*add_target_inst)
         return response

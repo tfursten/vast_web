@@ -93,16 +93,28 @@
             'selectNone',
             {
             extend: 'copy',
+            text: '<i class="bi bi-copy rm"></i>Copy',
             title: 'Metadata List'
             },
             {
             extend: 'csv',
+            text: '<i class="bi bi-download rm"></i>CSV',
             title: 'Metadata List'
             },
             {
             extend: 'excel',
+            text: '<i class="bi bi-download rm"></i>Excel',
             title: 'Metadata List'
             },
+            {
+            extend: 'copy',
+            text: '<i class="bi bi-copy rm"></i>Copy Categories',
+            header: false,          // Disable export header tabla
+            exportOptions: {
+                columns: [0]      // Select columns to be exported
+            },
+            title: null
+        },
         ]
             }
     })

@@ -130,18 +130,18 @@ def impute_missing_alleles(allele_table):
 
 
 
-def add_imputed_vals_to_table(alleles_df, imputed_df):
-    """
-    Add imputed values to alleles table
-    """
-    for allele in alleles_df:
-        col = alleles_df[allele]
-        empty = col[col == ''].index
-        for genome in empty:
-            print(genome, allele)
-            alleles_df.loc[genome, allele] = str(
-                imputed_df.loc[(genome, allele)].Allele)
-    return alleles_df
+# def add_imputed_vals_to_table(alleles_df, imputed_df):
+#     """
+#     Add imputed values to alleles table
+#     """
+#     for allele in alleles_df:
+#         col = alleles_df[allele]
+#         empty = col[col == ''].index
+#         for genome in empty:
+#             print(genome, allele)
+#             alleles_df.loc[genome, allele] = str(
+#                 imputed_df.loc[(genome, allele)].Allele)
+#     return alleles_df
 
 
 def alleles_to_numerical(alleles_df):
@@ -153,16 +153,18 @@ def alleles_to_numerical(alleles_df):
     return alleles_df
 
 
-def format_data_for_optimization(alleles_df, imputed_df):
+def format_data_for_optimization(alleles_df):
     """
-    Format allele table by adding back in imputed values, 
-    and converting alleles to numerical values.
+    Convert alleles to numerical category values.
     """
-    return alleles_to_numerical(
-        add_imputed_vals_to_table(alleles_df, imputed_df))
+    return alleles_to_numerical(alleles_df)
+        
 
 
 def get_starting_resolution(genomes):
+    """
+    Starting resolution is all genomes in same group == all zeros
+    """
     return pd.DataFrame(np.zeros(len(genomes)), index=genomes, columns=['Start'])
 
 

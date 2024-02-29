@@ -8,11 +8,11 @@
 <h1 class="border-bottom">{{ targetcollection.project.name }} / {{ targetcollection.name }} </h1>
 <h3>Selected targets for collection</h3>
     <div class="d-grid gap-2 d-md-block mt-2 mb-2">
-        <a class="btn btn-success btn" href="{% url 'targets:target_collection_add_targets_opt' targetcollection.id %}" role="button">Add Targets <span data-feather="plus"></span></a>
-        <a class="btn btn-primary btn" href="{% url 'targets:target_collection_add_targets_man' targetcollection.id %}">Edit Targets <span data-feather="edit"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:target_collection_detail' targetcollection.id %}" role="button">Target Collection <span data-feather="corner-up-left"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:target_collection_list' %}" role="button">Target Collections <span data-feather="list"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button">Home <span data-feather="corner-up-left"></span></a>
+        <a class="btn btn-success btn" href="{% url 'targets:target_collection_add_targets_opt' targetcollection.id %}" role="button"><i class="bi bi-plus-lg rm"></i>Add Targets</a>
+        <a class="btn btn-primary btn" href="{% url 'targets:target_collection_add_targets_man' targetcollection.id %}"><i class="bi bi-pencil-square rm"></i>Edit Targets</a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:target_collection_detail' targetcollection.id %}" role="button"><i class="bi bi-box-arrow-in-left rm"></i>Target Collection</a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:target_collection_list' %}" role="button"><i class="bi bi-list rm"></i>Target Collections</a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
     </div>
     
 
@@ -63,15 +63,18 @@
         buttons: [ 
         {
           extend: 'copy',
-          title: 'Locus List'
+          text: '<i class="bi bi-copy rm"></i>Copy',
+          title: 'Targets List'
         },
         {
           extend: 'csv',
-          title: 'Locus List'
+          text: '<i class="bi bi-download rm"></i>CSV',
+          title: 'Targets List'
         },
         {
           extend: 'excel',
-          title: 'Locus List'
+          text: '<i class="bi bi-download rm"></i>Excel',
+          title: 'Targets List'
         }]
         }}
     );

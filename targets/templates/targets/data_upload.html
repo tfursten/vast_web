@@ -5,9 +5,9 @@
     <form method="POST" enctype="multipart/form-data" id="fileform">
         {% csrf_token %}
         <fieldset class="form-group">
-            <legend class="border-bottom mb-6">Select data file</legend>
+            <legend class="border-bottom mb-6">Select data file <i class="bi bi-filetype-xlsx lm"></i><i class="bi bi-filetype-csv lm"></i></legend>
 
-            {{ form|crispy }}
+            {{ form | crispy }}
             <p class="text-muted mt-3"><small>The data table should be sourced from <a href="https://pubmlst.org/">PubMLST</a> without any changes to the genome IDs or the column headers.
                 On the PubMLST organism page, click on Genome Collections. Select and filter genomes to use in this project and then click the export dataset button under Analysis Tools.
                 On the next page, select which loci to include and metadata categories and then click download. The resulting Excel file can be uploaded here. Metadata can be changed and additional
@@ -17,8 +17,8 @@
             </p>
         </fieldset>
         <div class="d-grid gap-2 d-md-block mt-2">
-            <button class="btn btn-success" type="submit" id="submitBtn">Submit</button>
-           <a class="btn btn-outline-danger mr-5" href="{% url 'targets:project_list' %}" role="button">Cancel</a>
+            <button class="btn btn-success" type="submit" id="submitBtn"><i class="bi bi-upload rm"></i>Upload</button>
+           <a class="btn btn-outline-danger mr-5" href="{% url 'targets:project_list' %}" role="button"><i class="bi bi-x-lg rm"></i>Cancel</a>
            <div id="workingMessage" style="display: none;" class="text-muted mt-3"><small>Still working... Large datasets may take a long time to process.</small></div>
 
        </div>

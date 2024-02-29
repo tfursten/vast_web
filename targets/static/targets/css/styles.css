@@ -20,6 +20,9 @@ body {
   margin-bottom: 25px; /* Adjust the value to increase or decrease spacing */
 }
 
+.lm {
+  margin-left: 10px;
+}
 
 .rm {
   margin-right: 10px; /* Adjust the value as needed */
@@ -145,7 +148,6 @@ body {
   grid-template-columns: repeat(3, 1fr);
 }
 }
-
 
 
 .round-icon-container-circle {

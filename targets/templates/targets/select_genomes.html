@@ -93,17 +93,29 @@
             'selectAll',
             'selectNone',
             {
+                extend: 'copy',
+                title: 'Genome List',
+                text: '<i class="bi bi-copy rm"></i>Copy',
+            },
+            {
+                extend: 'csv',
+                title: 'Genome List',
+                text: '<i class="bi bi-download rm"></i>CSV',
+            },
+            {
+                extend: 'excel',
+                title: 'Genome List',
+                text: '<i class="bi bi-download rm"></i>Excel',
+            },
+            {
             extend: 'copy',
-            title: 'Genome List'
+            text: '<i class="bi bi-copy rm"></i>Copy Genomes',
+            header: false,          // Disable export header tabla
+            exportOptions: {
+                columns: [0]      // Select columns to be exported
             },
-            {
-            extend: 'csv',
-            title: 'Genome List'
-            },
-            {
-            extend: 'excel',
-            title: 'Genome List'
-            },
+            title: null
+        },
         ]
             }
     })

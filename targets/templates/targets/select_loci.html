@@ -92,16 +92,28 @@
             'selectNone',
             {
             extend: 'copy',
+            text: '<i class="bi bi-copy rm"></i>Copy',
             title: 'Loci List'
             },
             {
             extend: 'csv',
+            text: '<i class="bi bi-download rm"></i>CSV',
             title: 'Loci List'
             },
             {
             extend: 'excel',
+            text: '<i class="bi bi-download rm"></i>Excel',
             title: 'Loci List'
             },
+            {
+            extend: 'copy',
+            text: '<i class="bi bi-copy rm"></i>Copy Loci',
+            header: false,          // Disable export header tabla
+            exportOptions: {
+                columns: [0]      // Select columns to be exported
+            },
+            title: null
+        },
         ]
             }
     })

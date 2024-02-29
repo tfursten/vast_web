@@ -7,9 +7,10 @@
 {% block content %}
 <h1 class="border-bottom">Selected Metadata Categories for Project: {{ project.name }}</h1>
     <div class="d-grid gap-2 d-md-block mt-2 mb-2">
-        <a class="btn btn-primary btn" href="{% url 'targets:select_metacat' project.id %}" role="button">Update Selection <span data-feather="edit"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_detail' project.id %}" role="button">Project <span data-feather="corner-up-left"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button">Home <span data-feather="corner-up-left"></span></a>
+        <a class="btn btn-primary btn" href="{% url 'targets:select_metacat' project.id %}" role="button"><i class="bi bi-pencil-square rm"></i>Update Selection</a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_list' %}" role="button"><i class="bi bi-list rm"></i>Projects</span></a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_detail' project.id %}" role="button"><i class="bi bi-box-arrow-in-left rm"></i>Project</span></a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
     </div>
     
 
@@ -63,16 +64,29 @@
         buttons: [ 
         {
           extend: 'copy',
+          text: '<i class="bi bi-copy rm"></i>Copy',
           title: 'Metadata List'
         },
         {
           extend: 'csv',
+          text: '<i class="bi bi-download rm"></i>CSV',
           title: 'Metadata List'
         },
         {
           extend: 'excel',
+          text: '<i class="bi bi-download rm"></i>Excel',
           title: 'Metadata List'
-        }]
+        },
+        {
+            extend: 'copy',
+            text: '<i class="bi bi-copy rm"></i>Copy Categories',
+            header: false,          // Disable export header tabla
+            exportOptions: {
+                columns: [0]      // Select columns to be exported
+            },
+            title: null
+        },
+    ]
         }}
     );
 } );

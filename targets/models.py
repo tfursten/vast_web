@@ -4,8 +4,7 @@ import json
 import pandas as pd
 from .utils import (
     get_resolution,
-    format_data_for_optimization,
-    add_imputed_vals_to_table)
+    format_data_for_optimization)
 
 class Organism(models.Model):
     """
@@ -224,29 +223,43 @@ class Project(models.Model):
         """
         return dataframe using active genomes and loci
         """
-        active_genomes = list(self.get_active_genomes().values_list('name', flat=True))
-        active_loci = list(self.get_active_loci().values_list('name', flat=True))
-        df = pd.read_excel(
-            self.data.path, index_col=0, na_values='',
-            keep_default_na=False, dtype=str)
-        df.index.name = "#Genome"
-        return df.loc[active_genomes, active_loci].fillna('')
+        return pd.DataFrame(Allele.objects.filter(
+            project=self,
+            genome__in=self.get_selected_genomes(),
+            locus__in=self.get_selected_loci()).values_list(
+                'genome__name', 'locus__name', 'allele'),
+            columns=['Genome', 'Locus', 'Allele']).pivot(
+                index='Genome', columns='Locus', values='Allele')
+        
 
     def get_metadata_table(self):
         """
         return dataframe using active genomes and metadata
         """
-        active_genomes = list(self.get_active_genomes().values_list('name', flat=True))
-        active_metadata = list(self.get_active_metadata().values_list('name', flat=True))
-        df = pd.read_excel(self.data.path, index_col=0, na_values='', keep_default_na=False, dtype=str)
-        return df.loc[active_genomes, active_metadata].fillna('')
+        return pd.DataFrame(Metadata.objects.filter(
+            project=self,
+            genome__in=self.get_selected_genomes(),
+            category__in=self.get_selected_metadata()).values_list(
+                'genome__name', 'category__name', 'value'),
+            columns=['Genome', 'Category', 'Value']).pivot(
+                index='Genome', columns='Category', values='Value')
     
     def get_imputed_data(self):
         """
-        Return dateframe of imputed values. The multindex is a combination
-        of the genome id and the locus id and the value is the imputed allele.
+        Return dateframe of imputed values. 
         """
-        return pd.read_csv(self.imputed_data.path, index_col=[0, 1], sep="\t")
+        df = pd.DataFrame(Allele.objects.filter(
+            project=self,
+            genome__in=self.get_selected_genomes(),
+            locus__in=self.get_selected_loci()).values_list(
+                'genome__name', 'locus__name', 'allele', 'imputed'),
+            columns=['Genome', 'Locus', 'Allele', 'Imputed'])
+        df['Allele'] = df[['Allele', 'Imputed']].apply(
+            lambda row: row.Allele if row.Allele else row.Imputed,
+            axis=1
+        )
+        return df[['Genome', 'Locus', 'Allele']].pivot(
+                index='Genome', columns='Locus', values='Allele')
 
 class MetadataCategory(models.Model):
     """

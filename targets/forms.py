@@ -61,12 +61,12 @@ class TargetCollectionUpdateForm(ModelForm):
 
     
 class DataUploadForm(forms.Form):
-    file = forms.FileField(label='Upload BIGSdb excel file from PubMLST')
+    file = forms.FileField(label='Upload BIGSdb file from PubMLST')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Add a FileExtensionValidator to the file_field
-        self.fields['file'].validators.append(FileExtensionValidator(allowed_extensions=['xlsx']))
+        self.fields['file'].validators.append(FileExtensionValidator(allowed_extensions=['xlsx', 'csv']))
 
 
 class AddTargets(ModelForm):
@@ -111,7 +111,7 @@ class AddTargets(ModelForm):
             # Filter categories based on the primary key
             print('inst', instance)
             self.fields['metadata'].queryset = MetadataCategory.objects.filter(
-                active=True, project=instance.project)
+                active=True, selected=True, project=instance.project)
         else:
             # If no instance is provided, show all categories
             self.fields['metadata'].queryset = MetadataCategory.objects.filter(

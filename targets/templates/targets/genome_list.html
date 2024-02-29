@@ -7,9 +7,10 @@
 {% block content %}
 <h1 class="border-bottom">Selected Genomes for Project: {{ project.name }}</h1>
     <div class="d-grid gap-2 d-md-block mt-2 mb-2">
-        <a class="btn btn-primary btn" href="{% url 'targets:select_genomes' project.id %}" role="button">Update Selection <span data-feather="edit"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_detail' project.id %}" role="button">Project <span data-feather="corner-up-left"></span></a>
-        <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button">Home <span data-feather="corner-up-left"></span></a>
+        <a class="btn btn-primary btn" href="{% url 'targets:select_genomes' project.id %}" role="button"><i class="bi bi-pencil-square rm"></i>Update Selection</a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_list' %}" role="button"><i class="bi bi-list rm"></i>Projects</span></a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:project_detail' project.id %}" role="button"><i class="bi bi-box-arrow-in-left rm"></i>Project</span></a>
+        <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
     </div>
     
     <table id="genome_table" class="display table table-hover"  align="center"  style="width:100%"> 
@@ -65,16 +66,31 @@
         buttons: [ 
         {
           extend: 'copy',
-          title: 'Genome List'
+          title: 'Genome List',
+          text: '<i class="bi bi-copy rm"></i>Copy',
+
         },
         {
           extend: 'csv',
-          title: 'Genome List'
+          title: 'Genome List',
+          text: '<i class="bi bi-download rm"></i>CSV',
         },
         {
           extend: 'excel',
-          title: 'Genome List'
-        }]
+          title: 'Genome List',
+          text: '<i class="bi bi-download rm"></i>Excel',
+
+        },
+        {
+            extend: 'copy',
+            text: '<i class="bi bi-copy rm"></i>Copy Genomes',
+            header: false,          // Disable export header tabla
+            exportOptions: {
+                columns: [0]      // Select columns to be exported
+            },
+            title: null
+        },
+    ]
         }}
     );
 } );
