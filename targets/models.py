@@ -324,7 +324,7 @@ class Locus(models.Model):
         """
         String representation of the locus.
         """
-        return f"{self.name} (Org: {self.project.organism.name})"
+        return f"{self.name}"
 
 class Genome(models.Model):
     """

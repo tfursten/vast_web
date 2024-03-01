@@ -79,7 +79,7 @@ class AddTargets(ModelForm):
         label=mark_safe("""
                         <b>Differentiate genomes by metadata category </b>
                         <a href="#" data-toggle="tooltip"
-                        title='Targets are selected that best differentiate genomes by selected feature. Genomes with missing metadata are not included in the calculation.'>
+                        title='Targets are selected that best differentiate genomes by selected feature. Genomes with missing metadata are not included in the calculation. With no feature selected the default is to resolve all genomes.'>
                         <span data-feather="info"
                         style="display: inline-block;"></span></a>"""),
         queryset=MetadataCategory.objects.filter(active=True), widget=forms.RadioSelect, required=False)

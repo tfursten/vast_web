@@ -1000,9 +1000,12 @@ def get_resolution_figure_html(request, pk):
     """
     Get HTML for parcats figure.
     """
-    print("HTML", request.POST, pk)
     target_col = TargetCollection.objects.get(id=pk)
-    loci = list(Locus.objects.filter(id__in=request.POST.getlist('loci')).values_list('name', flat=True))
+
+    loci = list(
+        Locus.objects.filter(
+            id__in=request.POST.getlist('loci')).values_list(
+                'name', flat=True))
     res = target_col.get_resolution_with_selected(loci)
     mc = request.POST.get('metadata')
     if mc:
@@ -1012,8 +1015,6 @@ def get_resolution_figure_html(request, pk):
     else:
         metacat = None
 
-    print("RES", res)
-
     html = draw_par_cats(
         res, metacat,
         font_size=int(request.POST.get('fontsize', 12)),
@@ -1021,7 +1022,26 @@ def get_resolution_figure_html(request, pk):
         )
     return HttpResponse(html)
 
+def get_default_figure_html(pk):
+    """
+    Default initial draw for resolution figure
+    """
+    target_col = TargetCollection.objects.get(id=pk)
+    loci = list(target_col.loci.all().values_list('name', flat=True))
+    res = target_col.get_resolution_with_selected(loci)
+    html = draw_par_cats(res)
+    return html
 
+
+def resolution_view(request, pk):
+    target_col = TargetCollection.objects.get(id=pk)
+    form = ResolutionForm(instance=target_col)
+    default_html = get_default_figure_html(pk)
+    return render(
+        request, 'targets/resolution_figure.html',
+        {'form':form, 'pk': pk, 'targetcollection': target_col,
+         'default_html': default_html
+        })
 
 # def get_resolution_figure_html(request, pk):
 #     """
@@ -1056,24 +1076,7 @@ def get_resolution_figure_html(request, pk):
 #     return HttpResponse(html)
 
 
-# def get_default_figure_html(pk):
-#     target_col = TargetCollection.objects.get(id=pk)
-#     alleles = target_col.get_imputed_alleles()
-#     res = target_col.get_resolution_table()
-#     meta = target_col.project.get_metadata_table()
-        
-#     html = draw_par_cats(res, meta, alleles)
-#     return html
 
-
-def resolution_view(request, pk):
-    target_col = TargetCollection.objects.get(id=pk)
-    form = ResolutionForm(instance=target_col)
-    # default_html = get_default_figure_html(pk)
-    return render(
-        request, 'targets/resolution_figure.html',
-        {'form':form, 'pk': pk, 'targetcollection': target_col,
-        })
 
 
 

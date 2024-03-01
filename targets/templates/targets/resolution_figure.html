@@ -10,9 +10,13 @@
 {% endblock head %}
 
 {% block content %}
-<h1 class="border-bottom"">{{ targetcollection.name }}</h1>
+<h1 class="border-bottom"">{{targetcollection.project.name}} / {{ targetcollection.name }}</h1>
 <h3>Target collection resolution</h3>
-
+<div class="d-grid gap-2 d-md-block mt-2 mb-2">
+<a class="btn btn-outline-primary btn" href="{% url 'targets:target_collection_detail' targetcollection.id %}" role="button"><i class="bi bi-box-arrow-in-left rm"></i>Target Collection</a>
+<a class="btn btn-outline-primary btn" href="{% url 'targets:target_collection_list' %}" role="button"><i class="bi bi-list rm"></i>Target Collections</a>
+<a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
+</div>
 <form id="resform">
     {% csrf_token %}
     {{ form | crispy }}
@@ -28,7 +32,7 @@
 
 <!-- Display area for the backend response -->
 <div id="dynamicContentContainer" class="mt-2">
-    
+    {{ default_html | safe }}
     <!-- Dynamic content will be injected here -->
 </div>
 

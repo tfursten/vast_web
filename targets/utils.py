@@ -90,6 +90,19 @@ def get_grapetree_distance_matrix(alleles):
     return dist
     
 
+def get_grapetree_newick(alleles):
+    """
+    Get newick tree from grapetree
+    """
+    file_buffer = StringIO()
+    alleles.replace("", "-").reset_index().to_csv(file_buffer, sep="\t", index=False)
+    file_str = file_buffer.getvalue()
+    return StringIO(grapetree.backend(
+        profile=file_str,
+        method="MSTreeV2")).getvalue()
+ 
+
+
         
 def get_weighted_likelihood_allele(alleles, dists):
     """
@@ -263,16 +276,20 @@ def draw_par_cats(
         metadata_cat=None,
         font_size=12, palette='inferno'):
     
-    
+    resolution = resolution.reset_index()
+    resolution['count'] = resolution.groupby('Resolution')['Resolution'].transform('count')
     if metadata_cat:
         resolution[f'{metadata_cat}_numerical'] = resolution[metadata_cat].astype('category').cat.codes
-        color = resolution[f'{metadata_cat}_numerical']
-        resolution = resolution.drop(f'{metadata_cat}_numerical', axis=1)
+        resolution = resolution.sort_values([metadata_cat, 'count', 'Resolution'], ascending=False)
+        color = resolution[f'{metadata_cat}_numerical'] # don't do any resorting after color is set
+        resolution = resolution[[metadata_cat, 'Resolution', 'Genome']]
     else:
-        resolution['Genomes'] = np.arange(0, resolution.shape[0])
-        color = resolution['Genomes']
-        resolution = resolution.drop('Genomes', axis=1)
-    resolution = resolution.sort_index()
+        resolution = resolution.sort_values(['count', 'Resolution'], ascending=False)
+        resolution['genome_numerical'] = resolution['Genome'].astype('category').cat.codes
+        color = resolution['genome_numerical'] # Don't do any sorting after color is set
+        resolution = resolution[['Resolution', 'Genome']]
+
+
     dims = []
 
     for c in resolution:
@@ -282,48 +299,28 @@ def draw_par_cats(
                 label = 'Resolution with selected loci' if c=="Resolution" else c
             ))
 
-    dims.append(
-        go.parcats.Dimension(
-            values = resolution.index,
-            label = "Genomes",
-        )
-    )
-
     fig = go.Figure(data = [go.Parcats(dimensions=dims,
             line={'color': color, 'colorscale': palette},
-            bundlecolors=True,         
+            bundlecolors=False,
             hoveron='category', hoverinfo='count',
             labelfont={'size': font_size, 'family': 'Arial', 'color': 'black'},
             tickfont={'size': font_size, 'family': 'Arial', 'color': 'black'},
-            arrangement='freeform')]) 
+            arrangement='freeform')])
 
     fig.update_layout(
         height=max(800, (resolution.shape[0] * 10))
     )
-
-    dim_order = []
-    if metadata_cat:
-        meta_order = resolution.groupby(
-            [metadata_cat]).size().sort_values(ascending=False).index
-        dim_order.append(
-            {"categoryorder": "array", "categoryarray": meta_order}
-        )
-    res_order = resolution.groupby('Resolution').size().sort_values(ascending=False).index
-    genome_order = resolution.sort_values(by="Resolution", key=lambda column: column.map(lambda e: list(res_order).index(e))).index
-    print(genome_order)
-    dim_order.append({"categoryorder": "array", "categoryarray": res_order})
-    dim_order.append({'categoryorder': "array", "categoryarray": genome_order})
     
-
-    fig.update_traces(dimensions=dim_order)
-
-#     fig.update_layout(
-#         margin=dict(l=200, r=200, t=50, b=20),
-#     )
     html = fig.to_html()
     return html
 
-
+def drop_nans(df, thresh_percent, axis=0):
+    
+    # Calculate the minimum number of non-NaN values required based on the threshold percentage
+    threshold_count = int(df.shape[(not bool(axis))] * thresh_percent)
+    # Drop rows with more than the specified threshold count of NaN values
+    res = df.dropna(thresh=threshold_count, axis=axis)
+    return res
 # def draw_par_cats(resolution, metadata, alleles,
 #                    metadata_cat=None, font_size=12, palette='inferno'):
 #     alleles = alleles.astype(str)
@@ -384,10 +381,4 @@ def draw_par_cats(
 #     return html
 
 
-def drop_nans(df, thresh_percent, axis=0):
-    
-    # Calculate the minimum number of non-NaN values required based on the threshold percentage
-    threshold_count = int(df.shape[(not bool(axis))] * thresh_percent)
-    # Drop rows with more than the specified threshold count of NaN values
-    res = df.dropna(thresh=threshold_count, axis=axis)
-    return res
+
