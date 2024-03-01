@@ -232,17 +232,29 @@ class Project(models.Model):
                 index='Genome', columns='Locus', values='Allele')
         
 
-    def get_metadata_table(self):
+    def get_metadata_table(self, meta=None, genomes=None):
         """
         return dataframe using active genomes and metadata
+        or metadata and genomes from passed querysets
         """
+        if meta is None:
+            meta_set = self.get_selected_metadata()
+        else:
+            meta_set = meta
+        if genomes is None:
+            genome_set = self.get_selected_genomes()
+        else:
+            genome_set = genomes
+        
         return pd.DataFrame(Metadata.objects.filter(
-            project=self,
-            genome__in=self.get_selected_genomes(),
-            category__in=self.get_selected_metadata()).values_list(
-                'genome__name', 'category__name', 'value'),
-            columns=['Genome', 'Category', 'Value']).pivot(
-                index='Genome', columns='Category', values='Value')
+                project=self,
+                genome__in=genome_set,
+                category__in=meta_set).values_list(
+                    'genome__name', 'category__name', 'value'),
+                columns=['Genome', 'Category', 'Value']).pivot(
+                    index='Genome', columns='Category', values='Value')
+
+
     
     def get_imputed_data(self):
         """

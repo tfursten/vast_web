@@ -7,7 +7,7 @@ from django.forms.widgets import CheckboxSelectMultiple
 from django.utils.safestring import mark_safe
 import plotly.express as px
 from django.db.models import Q
-
+import matplotlib.pyplot as plt
 
 
 class ProjectForm(ModelForm):
@@ -123,12 +123,18 @@ class ResolutionForm(ModelForm):
     class Meta:
         model = TargetCollection
         exclude = ['name', 'project', 'description']
+        labels = {'loci': "Select Loci to include in resolution"}
+
 
     metadata = forms.ModelChoiceField(
         label="Color by metadata category",
         queryset=MetadataCategory.objects.filter(selected=True), required=False)
-    fontsize = forms.IntegerField(min_value=8, max_value=20, initial=12)
-    palette = forms.ChoiceField(choices=[(n, n.capitalize()) for n in px.colors.named_colorscales()], initial='plasma')
+    fontsize = forms.IntegerField(
+        min_value=8, max_value=20, initial=12,
+        label="Font size")
+    palette = forms.ChoiceField(
+        choices=[(n, n.capitalize()) for n in px.colors.named_colorscales()],
+        initial='plasma', label="Color palette")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -144,4 +150,53 @@ class ResolutionForm(ModelForm):
             # If no instance is provided, show all categories
             self.fields['metadata'].queryset = MetadataCategory.objects.filter(
                 active=True, selected=True)
+    
+
+
+class TreeForm(ModelForm):
+    class Meta:
+        model = TargetCollection
+        exclude = ['name', 'project', 'description']
+        labels = {'loci': "Select Loci to include in tree"}
+    genomes = forms.ModelMultipleChoiceField(
+        label="Select genomes to show",
+        queryset=Genome.objects.filter(selected=True), required=True)
+    metadata = forms.ModelChoiceField(
+        label="Color by metadata category",
+        queryset=MetadataCategory.objects.filter(selected=True), required=False)
+    style = forms.ChoiceField(
+        choices = [('Circle', 'Circle'), ('Rectangular', 'Rectangular')],
+        initial='Rectangular',
+        label="Tree style")
+    fontsize = forms.IntegerField(
+        min_value=8, max_value=20, initial=12,
+        label="Font size")
+    palette = forms.ChoiceField(
+        choices=[(n, n.capitalize()) for n in plt.colormaps()],
+        initial='plasma',
+        label="Color palette")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        instance = kwargs.get('instance')
+
+        if instance:
+            # Filter categories based on the primary key
+            self.fields['metadata'].queryset = MetadataCategory.objects.filter(
+                active=True, selected=True, project=instance.project)
+            self.fields['loci'].queryset = instance.loci.all()
+            self.fields['genomes'].queryset = Genome.objects.filter(
+                active=True, selected=True, project=instance.project)
+            all_genomes = Genome.objects.filter(
+                active=True,
+                selected=True,
+                project=instance.project).values_list('id', flat=True)
+            # Set all choices as initial values
+            self.fields['genomes'].initial = all_genomes
+        else:
+            # If no instance is provided, show all categories
+            self.fields['metadata'].queryset = MetadataCategory.objects.filter(
+                active=True, selected=True)
+            self.fields['genomes'].queryset = Genome.objects.filter(active=True, selected=True)
     

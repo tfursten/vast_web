@@ -22,6 +22,8 @@ from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
 
+from django.views.generic import View
+import xml.etree.ElementTree as ET
 
 from .utils import *
 
@@ -1001,7 +1003,6 @@ def get_resolution_figure_html(request, pk):
     Get HTML for parcats figure.
     """
     target_col = TargetCollection.objects.get(id=pk)
-
     loci = list(
         Locus.objects.filter(
             id__in=request.POST.getlist('loci')).values_list(
@@ -1010,7 +1011,9 @@ def get_resolution_figure_html(request, pk):
     mc = request.POST.get('metadata')
     if mc:
         metacat = MetadataCategory.objects.get(id=mc).name
-        meta = target_col.project.get_metadata_table()[[metacat]]
+        meta = target_col.project.get_metadata_table(
+            meta=MetadataCategory.objects.filter(id=mc))
+        
         res = meta.join(res)
     else:
         metacat = None
@@ -1042,6 +1045,40 @@ def resolution_view(request, pk):
         {'form':form, 'pk': pk, 'targetcollection': target_col,
          'default_html': default_html
         })
+
+
+def tree_view(request, pk):
+    target_col = TargetCollection.objects.get(id=pk)
+    form = TreeForm(instance=target_col)
+    return render(
+        request, 'targets/tree_figure.html',
+        {'form':form, 'pk': pk, 'targetcollection': target_col}
+        )
+
+
+class TreeSVGView(View):
+    def get(self, request, *args, **kwargs):
+        target_col = TargetCollection.objects.get(id=pk)
+
+        # Filter alleles and genomes
+        allele_table = target_col.get_targets_table()
+
+        # newick = get_grapetree_newick(
+        #     target_col.get_targets_table()))
+
+        # Create an SVG tree
+        svg_tree = ET.Element("svg", xmlns="http://www.w3.org/2000/svg", width="100", height="100")
+
+        # Add a simple rectangle as an example
+        rect = ET.Element("rect", x="10", y="10", width="80", height="80", fill="blue")
+        svg_tree.append(rect)
+
+        # Convert the SVG tree to a string
+        svg_string = ET.tostring(svg_tree, encoding="utf-8", method="xml").decode()
+
+        # Create the HTTP response with SVG content
+        response = HttpResponse(svg_string, content_type="image/svg+xml")
+        return response
 
 # def get_resolution_figure_html(request, pk):
 #     """

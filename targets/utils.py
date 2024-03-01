@@ -101,8 +101,6 @@ def get_grapetree_newick(alleles):
         profile=file_str,
         method="MSTreeV2")).getvalue()
  
-
-
         
 def get_weighted_likelihood_allele(alleles, dists):
     """
@@ -275,6 +273,10 @@ def draw_par_cats(
         resolution,
         metadata_cat=None,
         font_size=12, palette='inferno'):
+    """
+    Draw parallel categories plot from resolution and metadata.
+    Returns HTML of figure from plotly plot
+    """
     
     resolution = resolution.reset_index()
     resolution['count'] = resolution.groupby('Resolution')['Resolution'].transform('count')
@@ -315,12 +317,21 @@ def draw_par_cats(
     return html
 
 def drop_nans(df, thresh_percent, axis=0):
-    
+    """
+    Drop rows or columns of a dataframe that have Nans over a threashold
+    """
     # Calculate the minimum number of non-NaN values required based on the threshold percentage
     threshold_count = int(df.shape[(not bool(axis))] * thresh_percent)
     # Drop rows with more than the specified threshold count of NaN values
     res = df.dropna(thresh=threshold_count, axis=axis)
     return res
+
+
+def draw_tree(tree, metadata, style, font_size, palette):
+    pass
+
+
+
 # def draw_par_cats(resolution, metadata, alleles,
 #                    metadata_cat=None, font_size=12, palette='inferno'):
 #     alleles = alleles.astype(str)
