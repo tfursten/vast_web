@@ -81,18 +81,13 @@ def get_grapetree_distance_matrix(alleles):
     alleles.replace("", "-").reset_index().to_csv(file_buffer, sep="\t", index=False)
     file_str = file_buffer.getvalue()
 
-    print(file_str[:100])
     dist = pd.read_csv(StringIO(grapetree.backend(
         profile=file_str,
         method="distance",
         matrix_type="symmetric")),
-        sep='\s+', skiprows=1, header=None, index_col=0)
+        sep="\\s+", skiprows=1, header=None, index_col=0)
     dist.columns = dist.index
-    print("DIST", dist.head())
-    print(dist.shape)
     return dist
-    
-    
     
 
         
@@ -191,12 +186,14 @@ def calculate_scores(opt_patterns):
     for row in opt_patterns:
         _, counts = np.unique(row, return_counts=True)
         scores.append(sum([c**2 - c for c in counts]))
-    return np.array(scores)
-
+    scores = np.array(scores)
+    if np.max(scores) == 0:
+        return np.zeros(len(scores))
+    else:
+        return (scores-np.min(scores))/(np.max(scores)-np.min(scores))
 
 def calculate_gini(opt_patterns, metadata):
-
-    meta_index = np.where(metadata != "")[0]
+    meta_index = np.where(metadata != "nan")[0]
     meta_values = np.unique(metadata.iloc[meta_index], return_inverse=True)[1]
     scores = []
     for i, row in enumerate(opt_patterns):
@@ -213,7 +210,11 @@ def calculate_gini(opt_patterns, metadata):
                                    return_counts=True)[1]]))        
         sizes = [s/len(row) for s in sizes]
         scores.append(sum([g*s for g, s in zip(gini_impurity, sizes)]))
-    return np.array(scores)
+    if np.max(scores) == 0:
+        return np.zeros(len(scores))
+    else:
+        return (scores-np.min(scores))/(np.max(scores)-np.min(scores))
+
     
 
 def optimization_loop(
@@ -240,9 +241,11 @@ def optimization_loop(
         if metadata is None:
             scores = calculate_scores(opt_pattern)
         else:
-            scores = calculate_gini(opt_pattern, metadata)
+            # pick scores based mostly by gini impurity but slightly modified by resoltuion
+            scores = calculate_gini(opt_pattern, metadata) + calculate_scores(opt_pattern) ** 3
+
         # Find minimum score, remove any targets that have already been selected in prev. iters.
-        min_scores = np.setdiff1d(np.where(scores == scores.min())[0], targets)
+        min_scores = np.setdiff1d(np.where(scores == scores.min())[0], targets) # index of best scores (lowest)
         # Find index of pattern with min score
         # If randomize, return a random min score else pick first
         min_score_target = np.random.choice(min_scores) if randomize else min_scores[0]
@@ -255,42 +258,28 @@ def optimization_loop(
 
 
 
-
-
-def draw_par_cats(resolution, metadata, alleles,
-                   metadata_cat=None, font_size=12, palette='inferno'):
-    alleles = alleles.astype(str)
-    resolution = resolution.astype(str)
-    resolution = resolution.T
-    alleles.index = alleles.index.astype(str)
-    resolution.index = resolution.index.astype(str)
-    metadata.index = metadata.index.astype(str)
-    # print(resolution)
-    # print(alleles)
-    # print(metadata)
-    # print(metadata_cat)
-    for genome in resolution.index:
-        for locus in resolution.columns:
-            resolution.loc[genome, locus] = f"{alleles.loc[genome, locus]}-{resolution.loc[genome, locus]}"
+def draw_par_cats(
+        resolution,
+        metadata_cat=None,
+        font_size=12, palette='inferno'):
+    
     
     if metadata_cat:
-        metadata[f'{metadata_cat}_numerical'] = metadata[metadata_cat].astype('category').cat.codes
-        resolution = metadata[[metadata_cat, f'{metadata_cat}_numerical' ]].join(resolution)    
-        resolution = resolution.sort_values(list(resolution.columns.values))
+        resolution[f'{metadata_cat}_numerical'] = resolution[metadata_cat].astype('category').cat.codes
         color = resolution[f'{metadata_cat}_numerical']
         resolution = resolution.drop(f'{metadata_cat}_numerical', axis=1)
     else:
         resolution['Genomes'] = np.arange(0, resolution.shape[0])
         color = resolution['Genomes']
         resolution = resolution.drop('Genomes', axis=1)
-
+    resolution = resolution.sort_index()
     dims = []
 
     for c in resolution:
         dims.append(
             go.parcats.Dimension(
                 values = resolution[c],
-                label = c
+                label = 'Resolution with selected loci' if c=="Resolution" else c
             ))
 
     dims.append(
@@ -311,11 +300,88 @@ def draw_par_cats(resolution, metadata, alleles,
     fig.update_layout(
         height=max(800, (resolution.shape[0] * 10))
     )
+
+    dim_order = []
+    if metadata_cat:
+        meta_order = resolution.groupby(
+            [metadata_cat]).size().sort_values(ascending=False).index
+        dim_order.append(
+            {"categoryorder": "array", "categoryarray": meta_order}
+        )
+    res_order = resolution.groupby('Resolution').size().sort_values(ascending=False).index
+    genome_order = resolution.sort_values(by="Resolution", key=lambda column: column.map(lambda e: list(res_order).index(e))).index
+    print(genome_order)
+    dim_order.append({"categoryorder": "array", "categoryarray": res_order})
+    dim_order.append({'categoryorder': "array", "categoryarray": genome_order})
+    
+
+    fig.update_traces(dimensions=dim_order)
+
 #     fig.update_layout(
 #         margin=dict(l=200, r=200, t=50, b=20),
 #     )
     html = fig.to_html()
     return html
+
+
+# def draw_par_cats(resolution, metadata, alleles,
+#                    metadata_cat=None, font_size=12, palette='inferno'):
+#     alleles = alleles.astype(str)
+#     resolution = resolution.astype(str)
+#     # resolution = resolution.T
+#     alleles.index = alleles.index.astype(str)
+#     resolution.index = resolution.index.astype(str)
+#     metadata.index = metadata.index.astype(str)
+#     print("IN PARCAT")
+#     print(metadata, alleles, resolution)
+
+#     for genome in resolution.index:
+#         for locus in resolution.columns:
+#             resolution.loc[genome, locus] = f"{alleles.loc[genome, locus]}-{resolution.loc[genome, locus]}"
+    
+#     if metadata_cat:
+#         metadata[f'{metadata_cat}_numerical'] = metadata[metadata_cat].astype('category').cat.codes
+#         resolution = metadata[[metadata_cat, f'{metadata_cat}_numerical' ]].join(resolution)    
+#         resolution = resolution.sort_values(list(resolution.columns.values))
+#         color = resolution[f'{metadata_cat}_numerical']
+#         resolution = resolution.drop(f'{metadata_cat}_numerical', axis=1)
+#     else:
+#         resolution['Genomes'] = np.arange(0, resolution.shape[0])
+#         color = resolution['Genomes']
+#         resolution = resolution.drop('Genomes', axis=1)
+
+#     dims = []
+
+#     for c in resolution:
+#         dims.append(
+#             go.parcats.Dimension(
+#                 values = resolution[c],
+#                 label = c
+#             ))
+
+#     dims.append(
+#         go.parcats.Dimension(
+#             values = resolution.index,
+#             label = "Genomes",
+#         )
+#     )
+
+#     fig = go.Figure(data = [go.Parcats(dimensions=dims,
+#             line={'color': color, 'colorscale': palette},
+#             bundlecolors=True,         
+#             hoveron='category', hoverinfo='count',
+#             labelfont={'size': font_size, 'family': 'Arial', 'color': 'black'},
+#             tickfont={'size': font_size, 'family': 'Arial', 'color': 'black'},
+#             arrangement='freeform')]) 
+
+#     fig.update_layout(
+#         height=max(800, (resolution.shape[0] * 10))
+#     )
+# #     fig.update_layout(
+# #         margin=dict(l=200, r=200, t=50, b=20),
+# #     )
+#     html = fig.to_html()
+#     return html
 
 
 def drop_nans(df, thresh_percent, axis=0):

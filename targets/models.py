@@ -2,9 +2,11 @@ from django.db import models
 import requests
 import json
 import pandas as pd
+import numpy as np
 from .utils import (
     get_resolution,
-    format_data_for_optimization)
+    format_data_for_optimization,
+    alleles_to_numerical)
 
 class Organism(models.Model):
     """
@@ -123,8 +125,6 @@ class Project(models.Model):
         """
         return self.targetcollection_set.filter().count()
     
-
-            
     
     def get_selected_genomes(self):
         """
@@ -397,38 +397,66 @@ class TargetCollection(models.Model):
    
     def get_resolution_table(self):
         """
-        Returns a resolution table for each genome and each chosen target using
+        Returns a resolution table for each selectedgenome
+        and each chosen target using
         imputed data.
-        """
-        #t = TargetCollection.objects.get(id=24)
-        #t.get_resolution_table()
-
-        project = self.project
-        selected_loci = self.loci.values_list('name', flat=True)
-        alleles_df = project.get_allele_table()[selected_loci]
-        imputed_df = project.get_imputed_data()
-        alleles_df = format_data_for_optimization(
-            alleles_df, imputed_df)[selected_loci]
+        """        
+        alleles_df = alleles_to_numerical(self.get_imputed_alleles())
         res = []
         for i in range(alleles_df.shape[1]):
             res.append(get_resolution(alleles_df.iloc[:, range(0, i+1)]))
-        return pd.DataFrame(res, index=alleles_df.columns, columns=alleles_df.index)
+        return pd.DataFrame(
+            np.array(res).T, index=alleles_df.index,
+            columns=alleles_df.columns)
 
+
+    def get_resolution_with_selected(self, loci):
+        alleles_df = alleles_to_numerical(self.get_imputed_alleles())
+        res = pd.DataFrame(
+            get_resolution(alleles_df[loci]),
+            columns=['Resolution'], index=alleles_df.index)
+        return res
+        
 
     def get_targets_table(self):
         """
-        Table of active genomes and target loci using uploaded data table
+        Table of selected genomes and target loci 
         """
-        project = self.project
-        active_genomes = list(project.get_active_genomes().values_list('name', flat=True))
-        loci = list(self.loci.all().values_list('name', flat=True))
-        df = pd.read_excel(project.data, index_col=0, na_values='', keep_default_na=False, dtype=str)
-        return df.loc[active_genomes, loci].fillna('')
+        df = pd.DataFrame(Allele.objects.filter(
+            project=self.project,
+            genome__in=self.project.get_selected_genomes(),
+            locus__in=self.loci.all()).values_list(
+                'genome__name', 'locus__name', 'allele'),
+            columns=['Genome', 'Locus', 'Allele'])
+        
+        return df[['Genome', 'Locus', 'Allele']].pivot(
+                index='Genome', columns='Locus', values='Allele')
+    
     
     def get_imputed_alleles(self):
-        return add_imputed_vals_to_table(
-                self.get_targets_table(),
-                self.project.get_imputed_data())
+        """
+        Table of selected genomes and target loci with imputed values added
+        """
+        df = pd.DataFrame(Allele.objects.filter(
+            project=self.project,
+            genome__in=self.project.get_selected_genomes(),
+            locus__in=self.loci.all()).values_list(
+                'genome__name', 'locus__name', 'allele', 'imputed'),
+            columns=['Genome', 'Locus', 'Allele', 'Imputed'])
+        df['Allele'] = df[['Allele', 'Imputed']].apply(
+            lambda row: row.Allele if row.Allele else row.Imputed,
+            axis=1
+        )
+        return df[['Genome', 'Locus', 'Allele']].pivot(
+                index='Genome', columns='Locus', values='Allele')
+    
+    
+    
+    
+    # def get_imputed_alleles(self):
+    #     return add_imputed_vals_to_table(
+    #             self.get_targets_table(),
+    #             self.project.get_imputed_data())
 
 
     class Meta:

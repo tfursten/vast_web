@@ -122,11 +122,11 @@ class AddTargets(ModelForm):
 class ResolutionForm(ModelForm):
     class Meta:
         model = TargetCollection
-        exclude = ['name', 'project', 'description', 'loci']
+        exclude = ['name', 'project', 'description']
 
     metadata = forms.ModelChoiceField(
         label="Color by metadata category",
-        queryset=MetadataCategory.objects.filter(active=True), required=False)
+        queryset=MetadataCategory.objects.filter(selected=True), required=False)
     fontsize = forms.IntegerField(min_value=8, max_value=20, initial=12)
     palette = forms.ChoiceField(choices=[(n, n.capitalize()) for n in px.colors.named_colorscales()], initial='plasma')
 
@@ -138,9 +138,10 @@ class ResolutionForm(ModelForm):
         if instance:
             # Filter categories based on the primary key
             self.fields['metadata'].queryset = MetadataCategory.objects.filter(
-                active=True, project=instance.project)
+                active=True, selected=True, project=instance.project)
+            self.fields['loci'].queryset = instance.loci.all()
         else:
             # If no instance is provided, show all categories
             self.fields['metadata'].queryset = MetadataCategory.objects.filter(
-                active=True)
+                active=True, selected=True)
     

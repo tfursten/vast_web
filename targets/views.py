@@ -532,13 +532,11 @@ def load_project_data(request, pk):
             
             # Read data from file
             try:
-                df = pd.read_excel(file_name, index_col=0, dtype=str, na_values='',
-                                   keep_default_na=False).fillna('')
+                df = pd.read_excel(file_name, index_col=0, dtype=str, na_values='')
                 df.index.name="#Genome"
             except pd.errors.ExcelError:
                 try:
-                    df = pd.read_csv(file_name, index_col=0, dtype=str, na_values='',
-                                   keep_default_na=False).fillna('')
+                    df = pd.read_csv(file_name, index_col=0, dtype=str, na_values='')
                     df.index.name="#Genome"
                 except Exception:
                     messages.error(
@@ -571,7 +569,8 @@ def load_project_data(request, pk):
             msg = f"Data successfully added to project. " # add messages 
 
 
-
+            print('INDEXDTYPE', df.index.dtype)
+            print('HEAERDTYPE', df.columns.dtype)
             # Consider all other columns to be metadata
             genome_idx = df.index
             metadata_cols = df.columns.difference(db_loci)
@@ -639,7 +638,6 @@ def load_project_data(request, pk):
             # bulk create new genomes
             Genome.objects.bulk_create(
                 [Genome(project=project, name=name) for name in new_genomes])
-            
             # count number of unique alleles and save to instance
             all_genomes = Genome.objects.filter(project=project, active=True, selected=True)
             for genome in all_genomes:
@@ -687,9 +685,9 @@ def load_project_data(request, pk):
             alleles_df = alleles_df.join(imputed_data).reset_index()
             alleles_df['project'] = project
             # replace locus names with ids
-            locus_map = {k: Locus.objects.get(name=k) for k in alleles_df['locus'].unique()}
+            locus_map = {k: Locus.objects.get(name=k, project=project) for k in alleles_df['locus'].unique()}
             alleles_df['locus'] = alleles_df['locus'].replace(locus_map)
-            genome_map = {k: Genome.objects.get(name=k) for k in alleles_df['genome'].unique()}
+            genome_map = {k: Genome.objects.get(name=k, project=project) for k in alleles_df['genome'].unique()}
             alleles_df['genome'] = alleles_df['genome'].replace(genome_map)
             alleles_df = alleles_df.set_index(['project', 'genome', 'locus'])
             # Adding Alleles
@@ -715,9 +713,9 @@ def load_project_data(request, pk):
                 var_name='category', value_name='value')
             meta_df['project'] = project
             meta_df = meta_df.reset_index()
-            cat_map = {k: MetadataCategory.objects.get(name=k) for k in meta_df['category'].unique()}
+            cat_map = {k: MetadataCategory.objects.get(name=k, project=project) for k in meta_df['category'].unique()}
             meta_df['category'] = meta_df['category'].replace(cat_map)
-            genome_map = {k: Genome.objects.get(name=k) for k in meta_df['genome'].unique()}
+            genome_map = {k: Genome.objects.get(name=k, project=project) for k in meta_df['genome'].unique()}
             meta_df['genome'] = meta_df['genome'].replace(genome_map)
             meta_df = meta_df.set_index(['project', 'genome', 'category'])
             Metadata.objects.bulk_create(
@@ -997,48 +995,85 @@ def profile_list_view(request, pk):
                 )
                 
 
+
 def get_resolution_figure_html(request, pk):
     """
     Get HTML for parcats figure.
     """
     print("HTML", request.POST, pk)
     target_col = TargetCollection.objects.get(id=pk)
-    alleles = target_col.get_imputed_alleles()
-    res = target_col.get_resolution_table()
-    meta = target_col.project.get_metadata_table()
-
+    loci = list(Locus.objects.filter(id__in=request.POST.getlist('loci')).values_list('name', flat=True))
+    res = target_col.get_resolution_with_selected(loci)
     mc = request.POST.get('metadata')
-    print("MC", mc)
     if mc:
         metacat = MetadataCategory.objects.get(id=mc).name
+        meta = target_col.project.get_metadata_table()[[metacat]]
+        res = meta.join(res)
     else:
         metacat = None
-        
+
+    print("RES", res)
+
     html = draw_par_cats(
-        res, meta, alleles, metacat,
+        res, metacat,
         font_size=int(request.POST.get('fontsize', 12)),
-        palette=request.POST.get('palette', 'plasma'))
+        palette=request.POST.get('palette', 'plasma'),
+        )
     return HttpResponse(html)
 
 
-def get_default_figure_html(pk):
-    target_col = TargetCollection.objects.get(id=pk)
-    alleles = target_col.get_imputed_alleles()
-    res = target_col.get_resolution_table()
-    meta = target_col.project.get_metadata_table()
+
+# def get_resolution_figure_html(request, pk):
+#     """
+#     Get HTML for parcats figure.
+#     """
+#     print("HTML", request.POST, pk)
+#     target_col = TargetCollection.objects.get(id=pk)
+#     alleles = target_col.get_imputed_alleles()
+#     res = target_col.get_resolution_table()
+#     meta = target_col.project.get_metadata_table()
+#     print(alleles)
+#     print(request.POST.getlist('loci'))
+#     loci = list(Locus.objects.filter(id__in=request.POST.getlist('loci')).values_list('name', flat=True))
+#     print(loci)
+#     print('RES', res)
+#     alleles = alleles[loci]
+#     res = res[loci]
+#     print(alleles, res)
+
+#     mc = request.POST.get('metadata')
+#     print("MC", mc)
+#     if mc:
+#         metacat = MetadataCategory.objects.get(id=mc).name
+#     else:
+#         metacat = None
         
-    html = draw_par_cats(res, meta, alleles)
-    return html
+#     html = draw_par_cats(
+#         res, meta, alleles, metacat,
+#         font_size=int(request.POST.get('fontsize', 12)),
+#         palette=request.POST.get('palette', 'plasma'),
+#         )
+#     return HttpResponse(html)
+
+
+# def get_default_figure_html(pk):
+#     target_col = TargetCollection.objects.get(id=pk)
+#     alleles = target_col.get_imputed_alleles()
+#     res = target_col.get_resolution_table()
+#     meta = target_col.project.get_metadata_table()
+        
+#     html = draw_par_cats(res, meta, alleles)
+#     return html
 
 
 def resolution_view(request, pk):
     target_col = TargetCollection.objects.get(id=pk)
     form = ResolutionForm(instance=target_col)
-    default_html = get_default_figure_html(pk)
+    # default_html = get_default_figure_html(pk)
     return render(
         request, 'targets/resolution_figure.html',
         {'form':form, 'pk': pk, 'targetcollection': target_col,
-        'default_html': default_html})
+        })
 
 
 

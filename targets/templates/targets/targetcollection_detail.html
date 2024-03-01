@@ -8,9 +8,14 @@
       {% if targetcollection.count_loci %}
       <li class="list-group-item"><Strong>Targets: </Strong>
         <a href="{% url 'targets:target_collection_targets_list' targetcollection.id %}">{{ targetcollection.count_loci }} </a>
-        <a href="{% url 'targets:target_collection_add_targets_opt' targetcollection.id %}"><i class="bi bi-plus-square-fill rm lm"></i></a>
+        <a href="{% url 'targets:target_collection_add_targets_opt' targetcollection.id %}"><i class="bi bi-plus-square rm lm"></i></a>
         <a href="{% url 'targets:target_collection_add_targets_man' targetcollection.id %}"><i class="bi bi-pencil-square rm"></i></a>
         <a href="{% url 'targets:target_collection_targets_list' targetcollection.id %}"><i class="bi bi-card-list rm"></i></a>
+        <a href="{% url 'targets:resolution_figure' targetcollection.id %}"><i class="bi bi-pie-chart rm"></i></a>
+        <a href="{% url 'targets:profile_list' targetcollection.id %}"><i class="bi bi-table rm"></i></a>
+        <a href="#"><i class="bi bi-diagram-3-fill"></i></a>
+
+
 
       </li>
       {% else%}
@@ -25,10 +30,11 @@
     <a class="btn btn-primary btn mb-2" href="{% url 'targets:target_collection_add_targets_man' targetcollection.id %}" role="button"><i class="bi bi-pencil-square rm"></i>Edit Targets</a>
     <a class="btn btn-primary btn mb-2" href="{% url 'targets:target_collection_update' targetcollection.id %}" role="button"><i class="bi bi-pencil rm"></i>Edit Collection</a>
     <a class="btn btn-primary btn mb-2" href="{% url 'targets:target_collection_targets_list' targetcollection.id %}" role="button"><i class="bi bi-list rm"></i>View Targets</a>
-    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:target_collection_create' %}" role="button"><i class="bi bi-plus-lg rm"></i>Add New Target Collection</a>
-    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:project_list' %}" role="button"><i class="bi bi-list rm"></i>Projects</a>
+    <a class="btn btn-primary btn mb-2" href="{% url 'targets:resolution_figure' targetcollection.id %}" role="button"><i class="bi bi-pie-chart-fill rm"></i>Resolution</a>
+    <a class="btn btn-primary btn mb-2" href="{% url 'targets:profile_list' targetcollection.id %}" role="button"><i class="bi bi-table rm"></i>Profile</a>
+    <a class="btn btn-primary btn mb-2" href="#" role="button"><i class="bi bi-diagram-3-fill rm"></i>Tree</a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:target_collection_create' %}" role="button"><i class="bi bi-plus-lg rm"></i>Add New Collection</a>
     <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:target_collection_list' %}" role="button"><i class="bi bi-list rm"></i>Target Collections</a>
-    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
     <a class="btn btn-outline-danger btn mb-2" href="{% url 'targets:target_collection_delete' targetcollection.id %}" role="button"><i class="bi bi-trash rm"></i>Delete</a>
 </div>
 
