@@ -17,7 +17,7 @@
 <a class="btn btn-outline-primary btn" href="{% url 'targets:target_collection_list' %}" role="button"><i class="bi bi-list rm"></i>Target Collections</a>
 <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
 </div>
-<form id="resform">
+<form id="treeform">
     {% csrf_token %}
     {{ form | crispy }}
     
@@ -33,13 +33,11 @@
 
 
 
-
-
-<!-- Include the SVG using the generated URL -->
-<img src="{% url 'targets:tree_svg_view' pk %}" alt="SVG Image">
-
-
-
+<!-- Display area for the backend response -->
+<div id="dynamicContentContainer" class="mt-2">
+    <img src="{% url 'targets:tree_svg_view' pk %}" alt="Tree Image">
+    <!-- Dynamic content will be injected here -->
+</div>
 
 
 {% endblock content %}
@@ -67,17 +65,18 @@
         var btn = document.getElementById('submitBtn');
         btn.classList.add('disabled');
 
-        var formData = $('#resform').serialize();
+        var formData = $('#treeform').serialize();
 
         
         // Send AJAX request to the backend
         $.ajax({
             type: 'POST',
-            url: "{% url 'targets:resolution_figure_html' pk %}",  // Replace with your backend endpoint
+            url: "{% url 'targets:tree_svg_view' pk %}",  // Replace with your backend endpoint
             csrfmiddlewaretoken: '{{ csrf_token }}',
             data: formData,
             success: function (response) {
                 // Update the dynamic content container with the received HTML
+                console.log(response)
                 $('#dynamicContentContainer').html(response);
             },
             error: function (error) {

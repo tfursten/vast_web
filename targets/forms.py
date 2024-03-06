@@ -165,8 +165,8 @@ class TreeForm(ModelForm):
         label="Color by metadata category",
         queryset=MetadataCategory.objects.filter(selected=True), required=False)
     style = forms.ChoiceField(
-        choices = [('Circle', 'Circle'), ('Rectangular', 'Rectangular')],
-        initial='Rectangular',
+        choices = [('Circle', 'Circle'), ('Rectangle', 'Rectangle')],
+        initial='Rectangle',
         label="Tree style")
     fontsize = forms.IntegerField(
         min_value=8, max_value=20, initial=12,

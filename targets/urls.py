@@ -46,7 +46,7 @@ urlpatterns = [
     path("target-collection/<str:pk>/targets/profile/", views.profile_list_view, name="profile_list"),
     path("target-collection/<str:pk>/resolution/data/", views.get_resolution_figure_html, name="resolution_figure_html"),
     path("target-collection/<str:pk>/resolution/", views.resolution_view, name="resolution_figure"),
-    path("target-collection/<str:pk>/tree/data", views.TreeSVGView.as_view(), name="tree_svg_view"),
+    path("target-collection/<str:pk>/tree/data", views.TreeSVGView, name="tree_svg_view"),
     path("target-collection/<str:pk>/tree/", views.tree_view, name="tree_view"),
 
 

@@ -24,6 +24,8 @@ from django.core.files.base import ContentFile
 
 from django.views.generic import View
 import xml.etree.ElementTree as ET
+import tempfile
+from lxml import etree
 
 from .utils import *
 
@@ -1047,6 +1049,9 @@ def resolution_view(request, pk):
         })
 
 
+
+
+
 def tree_view(request, pk):
     target_col = TargetCollection.objects.get(id=pk)
     form = TreeForm(instance=target_col)
@@ -1056,29 +1061,57 @@ def tree_view(request, pk):
         )
 
 
-class TreeSVGView(View):
-    def get(self, request, *args, **kwargs):
-        target_col = TargetCollection.objects.get(id=pk)
+def TreeSVGView(request, pk):
+    target_col = TargetCollection.objects.get(id=pk)
+    print(request)
 
-        # Filter alleles and genomes
-        allele_table = target_col.get_targets_table()
+    if request.method == "POST":
+        # Draw tree using selected targets and genomes
+        loci = request.POST.getlist('loci')
+        genomes = request.POST.getlist('genomes')
+        newick = get_grapetree_newick(
+            target_col.get_targets_table(genomes, loci))
+        legend = True
+        # Get metadata
+        mc = request.POST.get('metadata')
+        if mc:
+            meta = target_col.project.get_metadata_table(
+                meta=MetadataCategory.objects.filter(id=mc))
+        else:
+            genomes = Genome.objects.filter(id__in=genomes).values_list('name', flat=True)
+            meta = pd.DataFrame(
+                genomes,
+                index=genomes,
+                columns=['Genomes'])
+            legend = False
+    else:
+        newick = get_grapetree_newick(
+            target_col.get_targets_table())
+        genomes = target_col.project.get_selected_genomes().values_list('name', flat=True)
+        meta = pd.DataFrame(
+                genomes,
+                index=genomes,
+                columns=['Genomes'])
+        legend = False
+    tree, ts = draw_tree(
+        newick, meta,
+        style = request.POST.get('style', 'Rectangular'),
+        font_size = request.POST.get('font_size', 12),
+        palette = request.POST.get('palette', "plasma"), legend=legend)
+    
+    tree_data = tree.render('%%returnSVG', tree_style=ts)[0]
+    # print(tree_data[:100])
+    # parser = etree.XMLParser(recover=True, encoding='utf-8')
 
-        # newick = get_grapetree_newick(
-        #     target_col.get_targets_table()))
+    # root = etree.fromstring(tree_data, parser=parser)
+    # print(root)
 
-        # Create an SVG tree
-        svg_tree = ET.Element("svg", xmlns="http://www.w3.org/2000/svg", width="100", height="100")
+    # # Find the SVG element using the XPath expression
+    # tree_svg = root.find('.//{http://www.w3.org/2000/svg}svg')
+    # print(tree_svg[:101])
 
-        # Add a simple rectangle as an example
-        rect = ET.Element("rect", x="10", y="10", width="80", height="80", fill="blue")
-        svg_tree.append(rect)
-
-        # Convert the SVG tree to a string
-        svg_string = ET.tostring(svg_tree, encoding="utf-8", method="xml").decode()
-
-        # Create the HTTP response with SVG content
-        response = HttpResponse(svg_string, content_type="image/svg+xml")
-        return response
+    return HttpResponse(tree_svg, content_type="image/svg+xml")
+    
 
 # def get_resolution_figure_html(request, pk):
 #     """

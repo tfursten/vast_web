@@ -256,14 +256,18 @@ class Project(models.Model):
 
 
     
-    def get_imputed_data(self):
+    def get_imputed_data(self, loci=None):
         """
         Return dateframe of imputed values. 
         """
+        if loci:
+            loci_set = loci
+        else:
+            loci_set = self.get_selected_loci()
         df = pd.DataFrame(Allele.objects.filter(
             project=self,
             genome__in=self.get_selected_genomes(),
-            locus__in=self.get_selected_loci()).values_list(
+            locus__in=loci_set).values_list(
                 'genome__name', 'locus__name', 'allele', 'imputed'),
             columns=['Genome', 'Locus', 'Allele', 'Imputed'])
         df['Allele'] = df[['Allele', 'Imputed']].apply(
@@ -430,14 +434,22 @@ class TargetCollection(models.Model):
         return res
         
 
-    def get_targets_table(self):
+    def get_targets_table(self, genomes=None, loci=None):
         """
         Table of selected genomes and target loci 
         """
+        if genomes:
+            genome_set = genomes
+        else:
+            genome_set = self.project.get_selected_genomes()
+        if loci:
+            loci_set = loci
+        else:
+            loci_set = self.loci.all()
         df = pd.DataFrame(Allele.objects.filter(
             project=self.project,
-            genome__in=self.project.get_selected_genomes(),
-            locus__in=self.loci.all()).values_list(
+            genome__in=genome_set,
+            locus__in=loci_set).values_list(
                 'genome__name', 'locus__name', 'allele'),
             columns=['Genome', 'Locus', 'Allele'])
         
