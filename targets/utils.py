@@ -9,14 +9,16 @@ from plotly.colors import hex_to_rgb, label_rgb
 from grapetree import grapetree
 from io import StringIO
 
+from Bio import Phylo
+import igraph
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from ete3 import (
-    Tree, TreeStyle,
-    NodeStyle,  TextFace,
-    RectFace, CircleFace,
-    PieChartFace)
+# from ete3 import (
+#     Tree, TreeStyle,
+#     NodeStyle,  TextFace,
+#     RectFace, CircleFace,
+#     PieChartFace)
 
 # os.environ['QT_QPA_PLATFORM']='offscreen'
 
@@ -339,123 +341,165 @@ def drop_nans(df, thresh_percent, axis=0):
     return res
 
 
+# def draw_tree(tree, metadata, style, font_size, palette, legend=True):
+
+#     # Set up colormaps
+#     metadata.index = metadata.index.map(str)
+
+#     meta_cat = metadata.columns.values[0]
+#     meta_data_code_map = {
+#         v: k for k, v in enumerate(
+#             metadata[meta_cat].value_counts().index)}
+#     metadata['code'] = metadata[meta_cat].apply(lambda x: meta_data_code_map.get(x))
+#     # Choose a built-in colormap 
+#     cmap = plt.get_cmap(palette)
+#     print(metadata)
+#     # Normalize values to be between 0 and 1
+#     norm = plt.Normalize(0, metadata['code'].nunique())
+
+#     # Create a ScalarMappable object to map values to colors
+#     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+#     meta_colors_rgba = {
+#         k: v for k, v in zip(
+#             metadata['code'].unique(),
+#             sm.to_rgba(metadata['code'].unique()))}
+
+#     meta_colors_hex = {k: mcolors.to_hex(v)
+#                        for k, v in meta_colors_rgba.items()}
+
+#     # Get the color-mapped values
+#     metadata['color'] = metadata['code'].map(meta_colors_hex)
+    
+#     tree = Tree(tree, format=1)
+#     tree.ladderize()
+#     for node in tree.traverse():
+#         nstyle = NodeStyle()
+#         if node.is_leaf():
+#             # Get metadata
+#             genome_id = node.name
+
+#     #         Add sample name face
+#             name_face = TextFace(
+#                 genome_id, fgcolor="black",
+#                 fsize=font_size, penwidth=6, ftype='Arial')
+#             name_face.margin_left = 5
+#             node.add_face(name_face, column=2)
+
+#             # Rectangle sizes
+#             rect_height = 10
+#             rect_width = 20
+#             outline = '#f0f0f0'
+            
+#             # Metadata Face
+#             meta_col = metadata.loc[genome_id]['color']
+            
+#             meta_rect = RectFace(rect_width, rect_height, outline, meta_col)
+#             node.add_face(meta_rect, column=1)
+
+#         # Add pie chart to each node
+#         if node.is_leaf():
+#             continue
+#     #         sample_leaf_nodes = [node.name]
+#         else:
+#     #     if nodeid in pick_nodes:
+#             leaf_names = node.get_leaf_names()
+#             genome_leaf_nodes = list(leaf_names)
+#             meta_pie_data = np.array([
+#                 metadata.loc[gen]['code'] for gen in genome_leaf_nodes])
+#             meta_pie_data.sort()
+#             if len(meta_pie_data):
+#                 percent = [(1/len(meta_pie_data)) * 100 for _ in meta_pie_data]
+#                 colors = [meta_colors_hex.get(val) for val in meta_pie_data]
+#                 line_color = None if len(percent) > 15 else "white"
+#                 pie_size = 20
+#                 pie = PieChartFace(
+#                             percent, pie_size, pie_size,
+#                             colors=colors, line_color=line_color)
+#                 node.add_face(pie, column=1)
+#         # Last set node style
+#         nstyle['hz_line_width'] = 1
+#         nstyle['vt_line_width'] = 1
+#         nstyle['fgcolor'] = "black"
+#         nstyle['size'] = 1
+
+#         node.set_style(nstyle)
+        
+#     ts = TreeStyle()
+#     ts.mode = 'c' if style == "Circle" else 'r'
+#     ts.margin_bottom = 15
+#     ts.margin_left = 30
+#     ts.margin_top = 10
+#     ts.margin_right = 10
+#     ts.min_leaf_separation = 1
+#     ts.allow_face_overlap = False
+#     ts.show_leaf_name = False
+#     # ts.optimal_scale_level = "full"
+
+    
+#     if legend:
+#         ts.legend_position=3
+
+#         # Draw Legend
+#         dot_size = 6
+#         t_margin_right = 10
+#         t_margin_left = 8
+#         t_margin_top = 2
+
+#         #     meta_data_code_map (name to code) meta_colors_hex (code to color)
+#         for name, code in meta_data_code_map.items():
+#             color = meta_colors_hex.get(code)
+#             ts.legend.add_face(CircleFace(dot_size, color), column=2)
+#             textface = TextFace(name, fsize=font_size, tight_text=True, ftype='Arial')
+#             textface.margin_top = t_margin_top
+#             textface.margin_right = t_margin_right
+#             textface.margin_left = t_margin_left
+#             ts.legend.add_face(textface, column=1)
+        
+#     return tree, ts
+
+
+
+
 def draw_tree(tree, metadata, style, font_size, palette, legend=True):
+    tree = Phylo.read(StringIO(tree), "newick")
+    G = convert_to_igraph(tree)
 
-    # Set up colormaps
-    metadata.index = metadata.index.map(str)
+    # Get edges and vertices
+    verticies = [v.index for v in G.vs]
+    edges = [e.tuple for e in G.es]
+    node_colors = [
+        'Black' for v in G.vs]
 
-    meta_cat = metadata.columns.values[0]
-    meta_data_code_map = {
-        v: k for k, v in enumerate(
-            metadata[meta_cat].value_counts().index)}
-    metadata['code'] = metadata[meta_cat].apply(lambda x: meta_data_code_map.get(x))
-    # Choose a built-in colormap 
-    cmap = plt.get_cmap(palette)
-    print(metadata)
-    # Normalize values to be between 0 and 1
-    norm = plt.Normalize(0, metadata['code'].nunique())
+    labels = [v['name'] for v in G.vs]
+    display_labels = ['' if 'Inner' in label else label for label in labels]
+    node_size = [1 if d_label == '' else 12 for d_label in display_labels]
 
-    # Create a ScalarMappable object to map values to colors
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    meta_colors_rgba = {
-        k: v for k, v in zip(
-            metadata['code'].unique(),
-            sm.to_rgba(metadata['code'].unique()))}
-
-    meta_colors_hex = {k: mcolors.to_hex(v)
-                       for k, v in meta_colors_rgba.items()}
-
-    # Get the color-mapped values
-    metadata['color'] = metadata['code'].map(meta_colors_hex)
+    layt = G.layout('kk')
+    N = len(layt)# N is equal to len(V)=len(G.vs)
     
-    tree = Tree(tree, format=1)
-    tree.ladderize()
-    for node in tree.traverse():
-        nstyle = NodeStyle()
-        if node.is_leaf():
-            # Get metadata
-            genome_id = node.name
-
-    #         Add sample name face
-            name_face = TextFace(
-                genome_id, fgcolor="black",
-                fsize=font_size, penwidth=6, ftype='Arial')
-            name_face.margin_left = 5
-            node.add_face(name_face, column=2)
-
-            # Rectangle sizes
-            rect_height = 10
-            rect_width = 20
-            outline = '#f0f0f0'
-            
-            # Metadata Face
-            meta_col = metadata.loc[genome_id]['color']
-            
-            meta_rect = RectFace(rect_width, rect_height, outline, meta_col)
-            node.add_face(meta_rect, column=1)
-
-        # Add pie chart to each node
-        if node.is_leaf():
-            continue
-    #         sample_leaf_nodes = [node.name]
-        else:
-    #     if nodeid in pick_nodes:
-            leaf_names = node.get_leaf_names()
-            genome_leaf_nodes = list(leaf_names)
-            meta_pie_data = np.array([
-                metadata.loc[gen]['code'] for gen in genome_leaf_nodes])
-            meta_pie_data.sort()
-            if len(meta_pie_data):
-                percent = [(1/len(meta_pie_data)) * 100 for _ in meta_pie_data]
-                colors = [meta_colors_hex.get(val) for val in meta_pie_data]
-                line_color = None if len(percent) > 15 else "white"
-                pie_size = 20
-                pie = PieChartFace(
-                            percent, pie_size, pie_size,
-                            colors=colors, line_color=line_color)
-                node.add_face(pie, column=1)
-        # Last set node style
-        nstyle['hz_line_width'] = 1
-        nstyle['vt_line_width'] = 1
-        nstyle['fgcolor'] = "black"
-        nstyle['size'] = 1
-
-        node.set_style(nstyle)
-        
-    ts = TreeStyle()
-    ts.mode = 'c' if style == "Circle" else 'r'
-    ts.margin_bottom = 15
-    ts.margin_left = 30
-    ts.margin_top = 10
-    ts.margin_right = 10
-    ts.min_leaf_separation = 1
-    ts.allow_face_overlap = False
-    ts.show_leaf_name = False
-    # ts.optimal_scale_level = "full"
-
-    
-    if legend:
-        ts.legend_position=3
-
-        # Draw Legend
-        dot_size = 6
-        t_margin_right = 10
-        t_margin_left = 8
-        t_margin_top = 2
-
-        #     meta_data_code_map (name to code) meta_colors_hex (code to color)
-        for name, code in meta_data_code_map.items():
-            color = meta_colors_hex.get(code)
-            ts.legend.add_face(CircleFace(dot_size, color), column=2)
-            textface = TextFace(name, fsize=font_size, tight_text=True, ftype='Arial')
-            textface.margin_top = t_margin_top
-            textface.margin_right = t_margin_right
-            textface.margin_left = t_margin_left
-            ts.legend.add_face(textface, column=1)
-        
-    return tree, ts
 
 
+
+def convert_to_igraph(tree):
+    #Convert a Biopython Tree object to an igraph Graph.
+    def add_edge(graph, node1, node2):
+        graph.add_edge(node1.name, node2.name)
+           
+
+    def build_subgraph(graph, top):
+        """Traverse  the Tree, and retrieve  graph edges and nodes."""
+        for clade in top:
+            graph.add_vertex(name=clade.root.name)
+            add_edge(graph, top.root, clade.root)
+            build_subgraph(graph, clade)
+
+    if tree.rooted:
+        G = igraph.Graph(directed=True)
+    else:
+        G = igraph.Graph()
+    G.add_vertex(name=str(tree.root))
+    build_subgraph(G, tree.root)
+    return G 
 
 
 

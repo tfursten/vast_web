@@ -8,46 +8,46 @@ from .utils import (
     format_data_for_optimization,
     alleles_to_numerical)
 
-class Organism(models.Model):
-    """
-    Model representing an PubMLST organism and path to databases in API
-    """
-    name = models.CharField(max_length=255)
-    db_isolates = models.CharField(max_length=255)
-    db_seqdef = models.CharField(max_length=255)
+# class Organism(models.Model):
+#     """
+#     Model representing an PubMLST organism and path to databases in API
+#     """
+#     name = models.CharField(max_length=255)
+#     db_isolates = models.CharField(max_length=255)
+#     db_seqdef = models.CharField(max_length=255)
 
-    @property
-    def name_no_spaces(self):
-        """
-        Return organism name without spaces for adding to paths
-        """
-        return self.name.replace("-like", "").replace(' ', '-').replace(".", "").replace("/", "")
+#     @property
+#     def name_no_spaces(self):
+#         """
+#         Return organism name without spaces for adding to paths
+#         """
+#         return self.name.replace("-like", "").replace(' ', '-').replace(".", "").replace("/", "")
     
-    def __str__(self):
-        """
-        String representation of the organism.
-        """
-        return f"{self.name}"
+#     def __str__(self):
+#         """
+#         String representation of the organism.
+#         """
+#         return f"{self.name}"
     
-    def get_genomes_list(self, request):
-        """
-        Pull data on all genomes for organism from PubMLST API
-        """
-        r = requests.get(
-        f'https://rest.pubmlst.org/db/{self.db_isolates}/genomes?return_all=1', params=request.GET)
-        split = str.split
-        res = json.loads(r.text)
-        return list(map(lambda x: int(split(x, "/")[-1]), res['isolates']))
+#     def get_genomes_list(self, request):
+#         """
+#         Pull data on all genomes for organism from PubMLST API
+#         """
+#         r = requests.get(
+#         f'https://rest.pubmlst.org/db/{self.db_isolates}/genomes?return_all=1', params=request.GET)
+#         split = str.split
+#         res = json.loads(r.text)
+#         return list(map(lambda x: int(split(x, "/")[-1]), res['isolates']))
 
-    def get_loci_list(self, request):
-        """
-        Pull data on all loci for organism from PubMLST API.
-        """
-        r = requests.get(
-            f'https://rest.pubmlst.org/db/{self.db_isolates}/loci?return_all=1', params=request.GET)
-        split = str.split
-        res = json.loads(r.text)
-        return list(map(lambda x: split(x, "/")[-1], res['loci']))
+#     def get_loci_list(self, request):
+#         """
+#         Pull data on all loci for organism from PubMLST API.
+#         """
+#         r = requests.get(
+#             f'https://rest.pubmlst.org/db/{self.db_isolates}/loci?return_all=1', params=request.GET)
+#         split = str.split
+#         res = json.loads(r.text)
+#         return list(map(lambda x: split(x, "/")[-1], res['loci']))
 
 
 
@@ -59,9 +59,7 @@ class Project(models.Model):
     name = models.CharField(max_length=64)
     description = models.CharField(max_length=255, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
-    organism = models.ForeignKey(Organism, on_delete=models.CASCADE, null=True, blank=True)
-    data = models.FileField(upload_to='uploads/', null=True, blank=True)
-    imputed_data = models.FileField(upload_to='uploads/', null=True, blank=True)
+    organism = models.CharField(max_length=64, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True, db_index=True, null=True)
     
     class Meta:
@@ -211,7 +209,6 @@ class Project(models.Model):
         Deactivate all Locus instances associated with this Project.
         """
         Locus.objects.filter(project=self, active=True).update(active=False, selected=False)
-   
 
     def deactivate_all_metadata_categories(self):
         """
@@ -255,7 +252,7 @@ class Project(models.Model):
                     index='Genome', columns='Category', values='Value')
 
 
-    
+
     def get_imputed_data(self, loci=None):
         """
         Return dateframe of imputed values. 
@@ -316,18 +313,21 @@ class Locus(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
     selected = models.BooleanField(default=True)
+    start_position = models.PositiveIntegerField(null=True, blank=True)
+    size = models.PositiveIntegerField(null=True, blank=True)
+    reference = models.CharField(max_length=64, null=True, blank=True)
     n_alleles = models.PositiveIntegerField(null=True, blank=True) # number of unqiue alleles
 
     class Meta:
         unique_together = ('project', 'name')
 
-    @property
-    def db_fasta_path(self):
-        """
-        Property returning the URL for the locus's alleles in FASTA format.
-        """
-        return 'https://rest.pubmlst.org/db/{0}/loci/{1}/alleles_fasta'.format(
-            self.organism.db_seqdef, self.name)
+    # @property
+    # def db_fasta_path(self):
+    #     """
+    #     Property returning the URL for the locus's alleles in FASTA format.
+    #     """
+    #     return 'https://rest.pubmlst.org/db/{0}/loci/{1}/alleles_fasta'.format(
+    #         self.organism.db_seqdef, self.name)
     
     # @property
     # def count_alleles(self):
@@ -406,6 +406,11 @@ class TargetCollection(models.Model):
     loci = models.ManyToManyField(Locus)
     created_on = models.DateTimeField(auto_now_add=True, db_index=True, null=True)
 
+    def __str__(self):
+        """
+        String representation of the target collection.
+        """
+        return f"{self.project.name}/{self.name}"
 
     @property
     def count_loci(self):

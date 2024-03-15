@@ -25,7 +25,7 @@ from django.core.files.base import ContentFile
 from django.views.generic import View
 import xml.etree.ElementTree as ET
 import tempfile
-from lxml import etree
+# from lxml import etree
 
 from .utils import *
 
@@ -86,88 +86,6 @@ class ProjectDeleteView(DeleteView):
         except ProtectedError:
             return render(request, "targets/protected_error.html")
 
-
-
-
-# ============== ORGANISM ================================
-
-
-def select_organism_list(request, pk):
-    if request.method == 'POST':
-        organism_resp = request.POST
-        organism, created = Organism.objects.update_or_create(
-                name=organism_resp.get('species'),
-                defaults={
-                    'db_isolates': organism_resp.get('isolates'),
-                    'db_seqdef':organism_resp.get('seqdef')}
-            )
-        project = Project.objects.get(id=pk)
-        # remove genomes and loci if organism is changed
-        if (project.organism) and (project.organism.id != organism.id):
-            project.loci.clear()
-            project.genomes.clear()
-        # Save any updates to the database fields
-        project.organism = organism
-        project.save()
-        if created:
-            messages.success(
-                request, f"Successfully created {organism.name} and added to project {project.name}.")
-        else:
-            messages.success(
-                request, f"Succesfully updated {organism.name} and added to project {project.name}.")
-        return redirect('targets:project_detail', pk=pk)
-        
-    return render(request, "targets/select_organism.html",  {'pk': pk})
-
-
-class OrganismListView(ListView):
-    template_name_suffix = "_list"
-    context_object_name = 'organism_list'
-    model = Organism
-
-
-class OrganismDetailView(DetailView):
-    model = Organism
-
-
-def get_organism_json(request):
-    r = requests.get('https://rest.pubmlst.org/db', params=request.GET)
-    res = json.loads(r.text)
-    data = []
-    idx = 0
-    org_dict = {}
-    for genus in res:
-        for db in genus['databases']:
-            if db['name'].split("_")[-1] == 'isolates':
-                species = db['description'].replace(' isolates', '')
-                if species in org_dict:
-                    org_dict[species]['isolates'] = db['name']
-                else:
-                    org_dict[species] = {'isolates': db['name']}
-            if db['name'].split("_")[-1] == "seqdef":
-                species = db['description'].replace(' sequence/profile definitions', '')
-                if species in org_dict:
-                    org_dict[species]['seqdef'] = db['name']
-                else:
-                    org_dict[species] = {'seqdef': db['name']}
-    for org, dbs in org_dict.items():
-        if len(dbs) > 1: # don't allow species with no seqdef
-            data.append({
-                'id': idx, 
-                'species': org,
-                'isolates': dbs['isolates'],
-                'seqdef': dbs['seqdef']})
-            idx += 1
-    return JsonResponse(data, safe=False)
-
-# class OrganismUpdateView(UpdateView):
-#     model = Panel
-#     template_name_suffix = '_update'
-#     form_class = PanelForm
-#     success_message = "Panel was successfully updated:  %(name)s"
-    
-#     def get_success_url(self):
-#         return reverse('targets:project_detail', args=(self.object.id,))
 
 
 
@@ -527,7 +445,7 @@ def select_metacat_list(request, pk):
 
 
 
-def load_project_data(request, pk):
+def load_allele_data(request, pk):
     if request.method == 'POST':
         form = DataUploadForm(request.POST, request.FILES)
         if form.is_valid():
@@ -548,54 +466,27 @@ def load_project_data(request, pk):
                         'Failed to load data, please check formatting and retry.',
                         extra_tags="danger")
                     return redirect('targets:project_detail', pk=pk)
-            try:
-                organism = project.organism
-                # pull existing loci data from database
-                # to filter out any values from the table that may
-                # not belong. 
-                db_loci = organism.get_loci_list(request)
-                loci_cols = df.columns.intersection(db_loci)
 
-                if len(loci_cols) == 0:
-                    raise IOError("Loci not found for selected organism")
-            except AttributeError:
-                messages.error(
-                    request, 'No Organism! Select organism before uploading data.',
-                    extra_tags="danger")
-                return redirect('targets:project_detail', pk=pk)
-            except IOError:
-                messages.error(
-                    request,
-                    "None of the loci are found for organism. Please check that data matches selected organism.",
-                    extra_tags="danger")
-                return redirect('targets:project_detail', pk=pk)
-            
-            msg = f"Data successfully added to project. " # add messages 
+            msg = "Alleles successfully added to project. " # add messages 
 
-
-            print('INDEXDTYPE', df.index.dtype)
-            print('HEAERDTYPE', df.columns.dtype)
-            # Consider all other columns to be metadata
             genome_idx = df.index
-            metadata_cols = df.columns.difference(db_loci)
-            meta_df = df.loc[genome_idx, metadata_cols]
-            alleles_df = df.loc[genome_idx, loci_cols]
+            loci_cols = df.columns
 
             # Drop Genomes (rows) with more than the specified threshold of NaN values
             
-            alleles_df = drop_nans(alleles_df, 0.8)
+            df = drop_nans(df, 0.8)
             # record dropped genomes
-            n_genomes_dropped = len(genome_idx.difference(alleles_df.index))
-            genome_idx = alleles_df.index # update to reflect dropped rows
-            alleles_df = alleles_df.loc[genome_idx, loci_cols]
+            n_genomes_dropped = len(genome_idx.difference(df.index))
+            genome_idx = df.index # update to reflect dropped rows
+            df = df.loc[genome_idx, loci_cols]
 
             # Drop Loci (cols) with more than the specified threshold of NaN values
-            alleles_df = drop_nans(alleles_df, 0.8, axis=1)
+            df = drop_nans(df, 0.8, axis=1)
             # record dropped alleles
-            n_loci_dropped = len(loci_cols.difference(alleles_df.columns))
+            n_loci_dropped = len(loci_cols.difference(df.columns))
             # update loci columns to reflect dropped 
-            loci_cols = alleles_df.columns
-            alleles_df = df.loc[genome_idx, loci_cols]
+            loci_cols = df.columns
+            df = df.loc[genome_idx, loci_cols]
 
             print("LOCI Dropped", n_loci_dropped)
             print("Genomes Dropped", n_genomes_dropped)
@@ -617,13 +508,13 @@ def load_project_data(request, pk):
             new_loci = list(set(loci_cols) - set(Locus.objects.filter(
                 project=project,
                 name__in=loci_cols).values_list('name', flat=True)))
-            # bulk create new loci
+            # bulk create new loci, active and selected by default
             Locus.objects.bulk_create(
                 [Locus(project=project, name=name) for name in new_loci])
             # count number of unique alleles and save to instance
             all_loci = Locus.objects.filter(project=project, active=True, selected=True)
             for locus in all_loci:
-                locus.n_alleles = alleles_df[locus.name].dropna().nunique()
+                locus.n_alleles = df[locus.name].dropna().nunique()
                 locus.save()
 
             # add GENOMES to database
@@ -645,11 +536,78 @@ def load_project_data(request, pk):
             # count number of unique alleles and save to instance
             all_genomes = Genome.objects.filter(project=project, active=True, selected=True)
             for genome in all_genomes:
-                genome.n_alleles = alleles_df.loc[genome.name].dropna().size
-                genome.n_metadata = meta_df.loc[genome.name].dropna().size
+                genome.n_alleles = df.loc[genome.name].dropna().size
                 genome.save()
-            
 
+            # impute data
+            print("IMPUTING DATA")
+            imputed_data = impute_missing_alleles(df).set_index('Genome')
+            df.index.name = 'genome'
+            df = pd.melt(
+                df, ignore_index=False,
+                var_name = "locus", value_name="allele")
+            df = df.reset_index().set_index(['genome', 'locus'])
+            imputed_data.index.name = 'genome'
+            imputed_data.columns = ['locus', 'imputed']
+
+            imputed_data = imputed_data.reset_index().set_index(['genome', 'locus'])
+            df = df.join(imputed_data).reset_index()
+            df['project'] = project
+            # replace locus names with ids
+            locus_map = {k: Locus.objects.get(name=k, project=project) for k in df['locus'].unique()}
+            df['locus'] = df['locus'].replace(locus_map)
+            genome_map = {k: Genome.objects.get(name=k, project=project) for k in df['genome'].unique()}
+            df['genome'] = df['genome'].replace(genome_map)
+            df = df.set_index(['project', 'genome', 'locus'])
+            # Adding Alleles
+            print("ADDING ALLELES")
+            Allele.objects.bulk_create(
+                [Allele(
+                    project=dat[0],
+                    genome=dat[1],
+                    locus=dat[2],
+                    allele=dat[3],
+                    imputed=dat[4]
+                    ) for dat in df.to_records()],
+                update_conflicts=True,
+                unique_fields=['project', 'genome', 'locus'],
+                update_fields=['allele', 'imputed'],
+            )
+            messages.success(request, msg)
+            return redirect('targets:project_detail', pk=pk)
+    else:
+        form = DataUploadForm()
+
+    return render(request, 'targets/data_upload.html', {'form': form})
+
+
+
+def load_metadata(request, pk):
+    if request.method == 'POST':
+        form = MetaDataUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            file_name = request.FILES['file']
+            project = Project.objects.get(pk=pk)
+            
+            # Read data from file
+            try:
+                df = pd.read_excel(file_name, index_col=0, dtype=str, na_values='')
+                df.index.name="#Genome"
+            except pd.errors.ExcelError:
+                try:
+                    df = pd.read_csv(file_name, index_col=0, dtype=str, na_values='')
+                    df.index.name="#Genome"
+                except Exception:
+                    messages.error(
+                        request,
+                        'Failed to load metadata, please check formatting and retry.',
+                        extra_tags="danger")
+                    return redirect('targets:project_detail', pk=pk)
+
+            msg = "Metadata successfully added to project. " # add messages 
+
+            genome_idx = df.index
+            metadata_cols = df.columns
             # add METADATA CATEGORIES to database
             print("UPDATING metacategories")
             # ids of existing metacats that should be activated (in uploaded table)
@@ -666,106 +624,123 @@ def load_project_data(request, pk):
             # bulk create new metacats
             MetadataCategory.objects.bulk_create(
                 [MetadataCategory(project=project, name=name) for name in new_metacat])
+            
+            # add GENOMES to database
+            # The allele table will dictate which genomes are "active"
+            # When uploading metadata, only add genomes that don't exist but don't
+            # change the active/deactive/selected/deselected status of the genomes
+
+            print("UPDATING genomes")
+            # New Genomes that are not in database to create
+            new_genomes = list(set(genome_idx) - set(Genome.objects.filter(
+                project=project,
+                name__in=genome_idx).values_list('name', flat=True)))
+            print(len(new_genomes))
+            # bulk create new genomes
+            Genome.objects.bulk_create(
+                [Genome(project=project, name=name, active=False, selected=False)
+                 for name in new_genomes])
+            # count number of unique alleles and save to instance
+            all_genomes = Genome.objects.filter(project=project, name__in=genome_idx)
+            for genome in all_genomes:
+                genome.n_metadata = df.loc[genome.name].dropna().size
+                genome.save()
 
             # count number of genomes with data and unique values and save to instance
             all_meta = MetadataCategory.objects.filter(project=project, active=True, selected=True)
             for meta in all_meta:
-                meta.n_values = meta_df[meta.name].dropna().nunique()
-                meta.n_genomes = meta_df[meta.name].dropna().size
+                meta.n_values = df[meta.name].dropna().nunique()
+                meta.n_genomes = df[meta.name].dropna().size
                 meta.save()
 
-            # impute data
-            print("IMPUTING DATA")
-            imputed_data = impute_missing_alleles(alleles_df).set_index('Genome')
-            alleles_df.index.name = 'genome'
-            alleles_df = pd.melt(
-                alleles_df, ignore_index=False,
-                var_name = "locus", value_name="allele")
-            alleles_df = alleles_df.reset_index().set_index(['genome', 'locus'])
-            imputed_data.index.name = 'genome'
-            imputed_data.columns = ['locus', 'imputed']
-
-            imputed_data = imputed_data.reset_index().set_index(['genome', 'locus'])
-            alleles_df = alleles_df.join(imputed_data).reset_index()
-            alleles_df['project'] = project
-            # replace locus names with ids
-            locus_map = {k: Locus.objects.get(name=k, project=project) for k in alleles_df['locus'].unique()}
-            alleles_df['locus'] = alleles_df['locus'].replace(locus_map)
-            genome_map = {k: Genome.objects.get(name=k, project=project) for k in alleles_df['genome'].unique()}
-            alleles_df['genome'] = alleles_df['genome'].replace(genome_map)
-            alleles_df = alleles_df.set_index(['project', 'genome', 'locus'])
-            # Adding Alleles
-            print("ADDING ALLELES")
-            Allele.objects.bulk_create(
-                [Allele(
-                    project=dat[0],
-                    genome=dat[1],
-                    locus=dat[2],
-                    allele=dat[3],
-                    imputed=dat[4]
-                    ) for dat in alleles_df.to_records()], 
-                update_conflicts=True,
-                unique_fields=['project', 'genome', 'locus'],
-                update_fields=['allele', 'imputed'],
-            )
             # select metadata using current genome idx
             print("ADDING METADATA")
-            meta_df = meta_df.loc[genome_idx, metadata_cols]
-            meta_df.index.name = 'genome'
-            meta_df = pd.melt(
-                meta_df, ignore_index=False,
+            df.index.name = 'genome'
+            df = pd.melt(
+                df, ignore_index=False,
                 var_name='category', value_name='value')
-            meta_df['project'] = project
-            meta_df = meta_df.reset_index()
-            cat_map = {k: MetadataCategory.objects.get(name=k, project=project) for k in meta_df['category'].unique()}
-            meta_df['category'] = meta_df['category'].replace(cat_map)
-            genome_map = {k: Genome.objects.get(name=k, project=project) for k in meta_df['genome'].unique()}
-            meta_df['genome'] = meta_df['genome'].replace(genome_map)
-            meta_df = meta_df.set_index(['project', 'genome', 'category'])
+            df['project'] = project
+            df = df.reset_index()
+            cat_map = {k: MetadataCategory.objects.get(name=k, project=project) for k in df['category'].unique()}
+            df['category'] = df['category'].replace(cat_map)
+            genome_map = {k: Genome.objects.get(name=k, project=project) for k in df['genome'].unique()}
+            df['genome'] = df['genome'].replace(genome_map)
+            df = df.set_index(['project', 'genome', 'category'])
             Metadata.objects.bulk_create(
                 [Metadata(
                     project=dat[0],
                     genome=dat[1],
                     category=dat[2],
                     value=dat[3]
-                ) for dat in meta_df.to_records()], 
+                ) for dat in df.to_records()],
                 update_conflicts=True,
                 unique_fields=['project', 'genome', 'category'],
                 update_fields=['value'],
             )
 
-
             messages.success(request, msg)
             return redirect('targets:project_detail', pk=pk)
     else:
-        form = DataUploadForm()
+        form = MetaDataUploadForm()
 
-    return render(request, 'targets/data_upload.html', {'form': form})
+    return render(request, 'targets/metadata_upload.html', {'form': form})
+
+
+
+
+
 
 def data_list_view(request, pk):
     project = Project.objects.get(id=pk)
-    allele_table = project.get_allele_table()
-    metadata_table = project.get_metadata_table()
-    print(allele_table)
+    df = project.get_allele_table().reset_index()
+    df.columns.name = None
+    df.index.name = None
     
-    df = metadata_table.join(allele_table)
-    df.index.name = "Genome ID"
-    html = df.reset_index().to_html(
+    html = df.to_html(
         table_id="datatable",
         classes=['display', 'table', 'table-hover'],
         justify="left", index=False)
-    metadata_idx = [i for i in range(1, metadata_table.shape[1] + 1)]
-    allele_idx = [i for i in range(metadata_table.shape[1] + 1, df.shape[1] + 1)]
 
     return render(
                 request, 'targets/data_table.html',
                 {
                     'table': html,
                     'project': project,
-                    'meta_idx': metadata_idx,
-                    'allele_idx': allele_idx
                 }
                 )
+
+
+def metadata_list_view(request, pk):
+    project = Project.objects.get(id=pk)
+    df = project.get_metadata_table().reset_index()
+    df.columns.name = None
+    df.index.name = None
+
+    html = df.to_html(
+        table_id="datatable",
+        classes=['display', 'table', 'table-hover'],
+        justify="left", index=False)
+
+    return render(
+                request, 'targets/metadata_table.html',
+                {
+                    'table': html,
+                    'project': project
+                }
+                )
+
+def metadata_delete_view(request, pk):
+    project = Project.objects.get(pk=pk)
+    if request.method == 'POST':
+
+        project.deactivate_all_metadata_categories()
+    
+        # Handle the confirmation of the delete action
+        return redirect('targets:project_list')  # Redirect to a success page after deletion
+
+    # Render the confirmation template for the delete action
+    return render(request, 'targets/metadata_confirm_delete.html', {'project': project})
+
 
 
 def data_delete_view(request, pk):
@@ -774,7 +749,6 @@ def data_delete_view(request, pk):
 
         project.deactivate_all_genomes()
         project.deactivate_all_loci()
-        project.deactivate_all_metadata_categories()
         # Delete all targetsets associated with the data
         # TargetCollection.objects.filter(project=project).delete()
 
@@ -1093,6 +1067,7 @@ def TreeSVGView(request, pk):
                 index=genomes,
                 columns=['Genomes'])
         legend = False
+    print(newick)
     tree, ts = draw_tree(
         newick, meta,
         style = request.POST.get('style', 'Rectangular'),
@@ -1284,42 +1259,121 @@ def TreeSVGView(request, pk):
 
 
 
+# ============== ORGANISM ================================
 
 
+# def select_organism_list(request, pk):
+#     if request.method == 'POST':
+#         organism_resp = request.POST
+#         organism, created = Organism.objects.update_or_create(
+#                 name=organism_resp.get('species'),
+#                 defaults={
+#                     'db_isolates': organism_resp.get('isolates'),
+#                     'db_seqdef':organism_resp.get('seqdef')}
+#             )
+#         project = Project.objects.get(id=pk)
+#         # remove genomes and loci if organism is changed
+#         if (project.organism) and (project.organism.id != organism.id):
+#             project.loci.clear()
+#             project.genomes.clear()
+#         # Save any updates to the database fields
+#         project.organism = organism
+#         project.save()
+#         if created:
+#             messages.success(
+#                 request, f"Successfully created {organism.name} and added to project {project.name}.")
+#         else:
+#             messages.success(
+#                 request, f"Succesfully updated {organism.name} and added to project {project.name}.")
+#         return redirect('targets:project_detail', pk=pk)
+        
+#     return render(request, "targets/select_organism.html",  {'pk': pk})
 
 
+# class OrganismListView(ListView):
+#     template_name_suffix = "_list"
+#     context_object_name = 'organism_list'
+#     model = Organism
 
 
-# def get_loci_json(request, organism):
-#     org = Organism.objects.get(id=organism)
-#     r = requests.get(
-#         'https://rest.pubmlst.org/db/{database}/loci?return_all=1'.format(
-#             database=org.isolates), params=request.GET)
-#     split = str.split
+# class OrganismDetailView(DetailView):
+#     model = Organism
+
+
+# def get_organism_json(request):
+#     r = requests.get('https://rest.pubmlst.org/db', params=request.GET)
 #     res = json.loads(r.text)
-#     data = [
-#         {'id': i, 'description': v} for i, v in enumerate(
-#         map(lambda x: split(x, "/")[-1], res['loci']))]
-
+#     data = []
+#     idx = 0
+#     org_dict = {}
+#     for genus in res:
+#         for db in genus['databases']:
+#             if db['name'].split("_")[-1] == 'isolates':
+#                 species = db['description'].replace(' isolates', '')
+#                 if species in org_dict:
+#                     org_dict[species]['isolates'] = db['name']
+#                 else:
+#                     org_dict[species] = {'isolates': db['name']}
+#             if db['name'].split("_")[-1] == "seqdef":
+#                 species = db['description'].replace(' sequence/profile definitions', '')
+#                 if species in org_dict:
+#                     org_dict[species]['seqdef'] = db['name']
+#                 else:
+#                     org_dict[species] = {'seqdef': db['name']}
+#     for org, dbs in org_dict.items():
+#         if len(dbs) > 1: # don't allow species with no seqdef
+#             data.append({
+#                 'id': idx, 
+#                 'species': org,
+#                 'isolates': dbs['isolates'],
+#                 'seqdef': dbs['seqdef']})
+#             idx += 1
 #     return JsonResponse(data, safe=False)
 
+# # class OrganismUpdateView(UpdateView):
+# #     model = Panel
+# #     template_name_suffix = '_update'
+# #     form_class = PanelForm
+# #     success_message = "Panel was successfully updated:  %(name)s"
+    
+# #     def get_success_url(self):
+# #         return reverse('targets:project_detail', args=(self.object.id,))
 
 
-# class OrganismLociListView(ListView):
-#     template_name = "targets/organism_loci_list.html"
-#     model = Locus
 
-#     def get_queryset(self, **kwargs):
-#         new_context = Locus.objects.filter(
-#             organism=self.kwargs['pk'],
-#         )
-#         return new_context
+
+
+
+# # def get_loci_json(request, organism):
+# #     org = Organism.objects.get(id=organism)
+# #     r = requests.get(
+# #         'https://rest.pubmlst.org/db/{database}/loci?return_all=1'.format(
+# #             database=org.isolates), params=request.GET)
+# #     split = str.split
+# #     res = json.loads(r.text)
+# #     data = [
+# #         {'id': i, 'description': v} for i, v in enumerate(
+# #         map(lambda x: split(x, "/")[-1], res['loci']))]
+
+# #     return JsonResponse(data, safe=False)
+
+
+
+# # class OrganismLociListView(ListView):
+# #     template_name = "targets/organism_loci_list.html"
+# #     model = Locus
+
+# #     def get_queryset(self, **kwargs):
+# #         new_context = Locus.objects.filter(
+# #             organism=self.kwargs['pk'],
+# #         )
+# #         return new_context
     
 
-# ============== DATA ==================================
-# def load_project_data(request, pk):
-#     if request.method == 'POST':
-#         form = DataUploadForm(request.POST, request.FILES)
+# # ============== DATA ==================================
+# # def load_project_data(request, pk):
+# #     if request.method == 'POST':
+# #         form = DataUploadForm(request.POST, request.FILES)
 #         if form.is_valid():
 #             file_name = request.FILES['file']
 #             project = Project.objects.get(pk=pk)

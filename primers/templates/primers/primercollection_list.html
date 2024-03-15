@@ -1,0 +1,93 @@
+{% extends "targets/base.html" %}
+{% block head %}
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.11.3/af-2.3.7/b-2.0.1/b-colvis-2.0.1/b-html5-2.0.1/b-print-2.0.1/cr-1.5.4/date-1.1.1/fc-4.0.0/fh-3.2.0/kt-2.6.4/r-2.2.9/rr-1.2.8/sb-1.2.2/sl-1.3.3/datatables.min.css"/>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/rowreorder/1.2.8/css/rowReorder.dataTables.min.css"/>
+{% endblock head %}
+
+{% block content %}
+<h1 class="border-bottom">Primer Collections</h1>
+    <div class="d-grid gap-2 d-md-block mt-2 mb-2">
+        <a class="btn btn-primary btn" href="{% url 'primers:primer_collection_create' %}" role="button"><span class="rm"><i class="bi bi-plus-lg"></i></span>New Primer Collection</a>
+    </div>
+    
+
+    <table id="project_table" class="display table table-hover"  align="center"  style="width:100%"> 
+        <thead>
+            
+            <tr>
+                <th>Primer Collections</th>
+                <th>No. Amplicon Targets</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for collection in primercollection_list %}
+            <tr>
+                <td>
+                    <a role="button" class="btn btn-success btn-sm mt-1" href="#"><span class="rm"><i class="bi bi-box-arrow-up-right"></i></span>{{ collection.name}}</a>
+                    <a role="button" class="btn btn-outline-success btn-sm mt-1" href="{% url 'primers:primer_collection_detail' collection.id %}"><span><i class="bi bi-info-circle"></i></span></a>
+                    <a role="button" class="btn btn-outline-primary btn-sm mt-1" href="{% url 'primers:primer_collection_update' collection.id %}"><span><i class="bi bi-pencil"></i></span></a>
+                    <a role="button" class="btn btn-outline-danger btn-sm mt-1" href="{% url 'primers:primer_collection_delete' collection.id %}"><span><i class="bi bi-trash"></i></span></a>
+                </td>
+                <td>
+
+                    <a role="button" class="btn btn-outline-success btn-sm mt-1" href="#"><span class="rm"><i class="bi bi-box-arrow-up-right"></i></span><span class="badge bg-success">{{ collection.count_loci }}</span></a>
+                    <a role="button" class="btn btn-outline-success btn-sm mt-1" href="#"><span><i class="bi bi-plus-circle"></i></span></a>
+                    <a role="button" class="btn btn-outline-primary btn-sm mt-1" href="#"><span><i class="bi bi-pencil"></i></span></a>
+                </td>
+                <td>
+                    {{ collection.description }}
+                </td>
+
+                    
+            </tr>
+                
+
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock content %}
+
+{% block js %}
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.11.3/af-2.3.7/b-2.0.1/b-colvis-2.0.1/b-html5-2.0.1/b-print-2.0.1/cr-1.5.4/date-1.1.1/fc-4.0.0/fh-3.2.0/kt-2.6.4/r-2.2.9/rr-1.2.8/sb-1.2.2/sl-1.3.3/datatables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/rowgroup/1.1.3/js/dataTables.rowGroup.min.js"></script>
+<script>
+    $(document).ready( function () {
+    $('#project_table').DataTable({
+    rowReorder: false,
+    fixedHeader: true,
+    stateSave: true,
+    order: [],
+    aLengthMenu: [
+            [25, 50, 100, 200, -1],
+            [25, 50, 100, 200, "All"]
+            ],
+    iDisplayLength: 25,
+    dom: 'B<"clear">lfrtip',
+
+    buttons: {
+        name: 'primary',
+        buttons: [ 
+        {
+          extend: 'copy',
+          title: 'Primer Collection List'
+        },
+        {
+          extend: 'csv',
+          title: 'Primer Collection List'
+        },
+        {
+          extend: 'excel',
+          title: 'Primer Collection List'
+        }]
+
+        }}
+    );
+} );
+</script>
+{% endblock js %}

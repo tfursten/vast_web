@@ -1,0 +1,18 @@
+{% extends "targets/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class='content-section'>
+    <form method="POST">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-6">Create New Primer Collection</legend>
+            {{ form|crispy }}
+        </fieldset>
+        <div class="d-grid gap-2 d-md-block mt-2">
+            <button class="btn btn-success" type="submit">Add</button>
+           <a class="btn btn-outline-danger mr-5" href="{% url 'primers:primer_collection_list' %}" role="button">Cancel</a>
+       </div>
+    </form>
+</div>
+{% endblock content %}
+

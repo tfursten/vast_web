@@ -1,0 +1,12 @@
+{% extends "targets/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<legend class="border-bottom mb-6">Update Primer Collection</legend>
+<form method="post">{% csrf_token %}
+    {{ form | crispy }}
+    <div class="d-grid gap-2 d-md-block mt-2">
+        <button class="btn btn-success" type="submit">Update</button>
+        <a class="btn btn-outline-danger mr-5" href="{% url 'primers:primer_collection_detail' primercollection.id %}" role="button">Cancel</a>
+    </div>
+</form>
+{% endblock content %}

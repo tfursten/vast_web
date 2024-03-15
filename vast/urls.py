@@ -22,4 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', index, name="index"),
     path("targets/", include("targets.urls")),
+    path("primers/", include("primers.urls"))
 ]

@@ -1,0 +1,21 @@
+{% extends "targets/base.html" %}
+{% block content %}
+<div class="card">
+    <h1 class="card-header">Primer Collection: {{ primercollection.name }}</h1>
+    <div class="card-body">
+      <p class="card-text"><strong>Description:</strong> {{ primercollection.description }}</p>
+    </div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item"><Strong>Notes:</Strong> {{ primercollection.notes }}</li>
+      <li class="list-group-item"><Strong>Created:</Strong> {{ primercollection.created_on }}</li>
+    </ul>
+</div>
+<div class="d-grid gap-0 d-md-block mt-2">
+    <a class="btn btn-primary btn mb-2" href="{% url 'primers:primer_collection_update' primercollection.id %}" role="button"><span><i class="bi bi-pencil rm"></i></span>Edit</a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'primers:primer_collection_create' %}" role="button"><span><i class="bi bi-plus-circle rm"></i></span>Add New Primer Collection</a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'primers:primer_collection_list' %}" role="button"><span><i class="bi bi-list rm"></i></span>Primer Collections</a>
+    <a class="btn btn-outline-primary btn mb-2" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
+    <a class="btn btn-outline-danger btn mb-2" href="{% url 'primers:primer_collection_delete' primercollection.id %}" role="button"><i class="bi bi-trash rm"></i>Delete</a>
+</div>
+
+{% endblock content %}

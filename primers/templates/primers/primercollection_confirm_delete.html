@@ -1,0 +1,18 @@
+{% extends "targets/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="card border-danger">
+    <h1 class="card-header border-danger text-danger">Delete Primer Collection: {{ primercollection.name }}</h1>
+        <div class="card-body">
+            <form method="post">{% csrf_token %}
+                <h3>Are you sure you want to delete primer collection?</h3>
+                <p class="text-danger">This will permenently delete all data associated with this primer collection.</p>
+                <div class="d-grid gap-2 d-md-block mt-2">
+                    <button class="btn btn-outline-danger" type="submit"><i class="bi bi-x-octagon-fill rm"></i>Delete</button>
+                    <a class="btn btn-success btn" href="{% url 'primers:primer_collection_detail' primercollection.id %}" role="button"><i class="bi bi-box-arrow-left rm"></i>Cancel</a>
+                </div>
+            </form>
+        </div>
+</div>
+
+{% endblock content %}

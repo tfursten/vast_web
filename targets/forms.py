@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 class ProjectForm(ModelForm):
     class Meta:
         model = Project
-        fields = ['name', 'description', 'notes']
+        fields = ['name', 'description', 'organism', 'notes']
         widgets = {
 
         }
@@ -27,7 +27,7 @@ class TargetCollectionForm(ModelForm):
             'project': mark_safe("""
                         <b>Select Project </b>
                         <a href="#" data-toggle="tooltip"
-                        title='Only projects that have an assigned organism and data uploaded are displayed. If project is not in list, finish project setup before adding target collection.'>
+                        title='Only projects that have data uploaded are displayed. If project is not in list, finish project setup before adding target collection.'>
                         <span data-feather="info"
                         style="display: inline-block;"></span></a>"""),
             
@@ -61,7 +61,16 @@ class TargetCollectionUpdateForm(ModelForm):
 
     
 class DataUploadForm(forms.Form):
-    file = forms.FileField(label='Upload BIGSdb file from PubMLST')
+    file = forms.FileField(label='Upload allele table')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add a FileExtensionValidator to the file_field
+        self.fields['file'].validators.append(FileExtensionValidator(allowed_extensions=['xlsx', 'csv']))
+
+
+class MetaDataUploadForm(forms.Form):
+    file = forms.FileField(label='Upload metadata table')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

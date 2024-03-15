@@ -5,13 +5,14 @@
     <form method="POST" enctype="multipart/form-data" id="fileform">
         {% csrf_token %}
         <fieldset class="form-group">
-            <legend class="border-bottom mb-6">Select allele data file <i class="bi bi-filetype-xlsx lm"></i><i class="bi bi-filetype-csv lm"></i></legend>
+            <legend class="border-bottom mb-6">Select metadata file <i class="bi bi-filetype-xlsx lm"></i><i class="bi bi-filetype-csv lm"></i></legend>
 
             {{ form | crispy }}
-            <p class="text-muted mt-3"><small>The allele table should have genome names as row headers and locus labels as column headers and genome
-                names should match the names in the uploaded metadata table. It may be in a csv or xlsx format. Leave missing data blank.
-                The allele table can be sourced from online databases (e.g. <a href="https://pubmlst.org/">PubMLST</a>) or have custom data.
-                This action will overwrite any previously uploaded alleles.
+            <p class="text-muted mt-3"><small>
+                The metadata table should have genome names as row headers and metadata labels as column headers and genome
+                names must match the names in the uploaded allele table. It may be in a csv or xlsx format. Leave missing data blank.
+                The metadata table can be sourced from online databases (e.g. <a href="https://pubmlst.org/">PubMLST</a>) or have custom data.
+                This action will overwrite any previously uploaded metadata.
             </small>
             </p>
         </fieldset>

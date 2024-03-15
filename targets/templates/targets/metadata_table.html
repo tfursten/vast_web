@@ -11,7 +11,7 @@
         <a class="btn btn-outline-primary btn" href="{% url 'targets:project_list' %}" role="button"><i class="bi bi-list rm"></i>Projects</a>
         <a class="btn btn-outline-primary btn" href="{% url 'targets:index' %}" role="button"><i class="bi bi-house rm"></i>Home</a>
     </div>
-<h3 class="border-bottom">Profile Table </h3>
+<h3 class="border-bottom">Metadata Table </h3>
     
     {{ table | safe }}
 
@@ -47,7 +47,7 @@
           {
             extend: 'copy',
             text: '<i class="bi bi-copy rm"></i>Copy',
-            title: 'Allele Table',
+            title: 'Metadata Table',
             exportOptions: {
                         columns: ':visible'
                     }
@@ -55,7 +55,7 @@
           {
             extend: 'csv',
             text: '<i class="bi bi-download rm"></i>CSV',
-            title: 'Allele Table',
+            title: 'Metadata Table',
             exportOptions: {
                         columns: ':visible'
                     }
@@ -63,7 +63,7 @@
           {
             extend: 'excel',
             text: '<i class="bi bi-download rm"></i>Excel',
-            title: 'Allele Table',
+            title: 'Metadata Table',
             exportOptions: {
                         columns: ':visible'
                     }
