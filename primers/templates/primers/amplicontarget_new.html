@@ -1,0 +1,100 @@
+{% extends "targets/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class='content-section'>
+    <form id="amplicon-form" method="POST">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-6">Samples for Event: {{ event.name }}</legend>
+            <p class="text-muted">Select samples to print labels.</p>
+            <table id="sample-table" class="display table table-hover">
+                <thead>
+                    <tr>
+                    <th>Sample ID</th>
+                    <th>Subject ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Sample Type</th>
+                    <th>Created On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sample in samples %} 
+                    <tr id="{{ sample.id }}">
+                    <td><a class="table-link" href="{% url 'lims:sample_detail' sample.id %}">{{ sample.name }}</a></td>
+                    <td><a class="table-link" href="{% url 'lims:subject_detail' sample.subject.id %}">{{ sample.subject.subject_ui }}</a></td>
+                    <td>{{ sample.subject.first_name }}</td>
+                    <td>{{ sample.subject.last_name }}</td>
+                    <td>{{ sample.sample_type }}</td>
+                    <td>{{ sample.created_on }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                </table>
+            <hr>
+            <legend class="border-bottom mb-6">Select Print Options</legend>
+            {{ form|crispy }}
+        </fieldset>
+        <div class="d-grid gap-2 d-md-block mt-2">
+            <button class="btn btn-success" type="submit">Print <span data-feather="printer"></span></button>
+            <!-- <a class="btn btn-primary btn" href="{% url 'lims:sample_labels_options' event.id %}" role="button">Next: Print Options <span data-feather="printer"></span></a> -->
+            <a class="btn btn-outline-danger btn" href="{% url 'lims:sample_list' %}" role="button">Cancel</a>
+            <a class="btn btn-outline-primary btn" href="{% url 'lims:index' %}" role="button">Home <span data-feather="home"></span></a>
+        </div>
+    </form>
+</div>
+{% endblock content %}
+
+{% block js %}
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.11.3/af-2.3.7/b-2.0.1/b-colvis-2.0.1/b-html5-2.0.1/b-print-2.0.1/cr-1.5.4/date-1.1.1/fc-4.0.0/fh-3.2.0/kt-2.6.4/r-2.2.9/rr-1.2.8/sb-1.2.2/sl-1.3.3/datatables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/rowgroup/1.1.3/js/dataTables.rowGroup.min.js"></script>
+<script>
+    $(document).ready( function () {
+    let table = $('#sample-table').DataTable({
+        rowReorder: false,
+        fixedHeader: true,
+        dom: 'B<"clear">lfrtip',
+        aLengthMenu: [
+            [10, 25, 50, 100, 200, -1],
+            [10, 25, 50, 100, 200, "All"]
+            ],
+        iDisplayLength: 10,
+        buttons: {
+            name: 'primary',
+            buttons: [ 'copy', 'csv', 'excel', 'pdf' ],
+        },
+            select: {
+                style: 'multi+shift'
+            },
+        'fnCreatedRow': function(nRow, aData, iDataIndex) {
+            $(nRow).attr('data-id', aData.DT_RowId); // or whatever you choose to set as the id
+            $(nRow).attr('id', 'id_' + aData.DT_RowId); // or whatever you choose to set as the id
+        },
+        })
+    table.rows({ page: 'all'}).select();
+
+    // Handle form submission event
+   $('#sample-form').on('submit', function(e){
+      let form = this;
+
+      let rows = table.rows( {selected: true} ).ids().toArray();
+      console.log(rows)
+        // Iterate over all selected rows
+      $.each(rows, function(idx, val){
+         // Create a hidden element
+         $(form).append(
+             $('<input>')
+                .attr('type', 'hidden')
+                .attr('name', 'ids')
+                .val(rows[idx])
+         );
+
+        });
+    });
+    })
+</script>
+{% endblock js %}

@@ -212,7 +212,7 @@ def calculate_scores(opt_patterns):
         _, counts = np.unique(row, return_counts=True)
         scores.append(sum([c**2 - c for c in counts]))
     scores = np.array(scores)
-    if np.max(scores) == 0:
+    if (np.max(scores) == 0) or (np.max(scores) == np.min(scores)):
         return np.zeros(len(scores))
     else:
         return (scores-np.min(scores))/(np.max(scores)-np.min(scores))
@@ -235,7 +235,7 @@ def calculate_gini(opt_patterns, metadata):
                                    return_counts=True)[1]]))        
         sizes = [s/len(row) for s in sizes]
         scores.append(sum([g*s for g, s in zip(gini_impurity, sizes)]))
-    if np.max(scores) == 0:
+    if (np.max(scores) == 0) or (np.max(scores) == np.min(scores)):
         return np.zeros(len(scores))
     else:
         return (scores-np.min(scores))/(np.max(scores)-np.min(scores))
@@ -268,7 +268,6 @@ def optimization_loop(
         else:
             # pick scores based mostly by gini impurity but slightly modified by resoltuion
             scores = calculate_gini(opt_pattern, metadata) + calculate_scores(opt_pattern) ** 3
-
         # Find minimum score, remove any targets that have already been selected in prev. iters.
         min_scores = np.setdiff1d(np.where(scores == scores.min())[0], targets) # index of best scores (lowest)
         # Find index of pattern with min score

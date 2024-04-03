@@ -12,4 +12,7 @@ class PrimerCollectionForm(ModelForm):
         model = PrimerCollection
         fields = ['name', 'description', 'notes']
         
-    
+class AmpliconTargetForm(ModelForm):
+    class Meta:
+        model = AmpliconTarget
+        fields = ['name', 'primer_collection', 'locus', ]
